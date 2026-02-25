@@ -39,6 +39,9 @@ All commit messages must be in English and follow the Conventional Commits stand
 
 **5. Development Principles**
 • English Only: All code, comments, and documentation must be in English.
+
 • Componentization: UI must be broken down into small, reusable components.
+
 • Accessibility: All features must support Keyboard Navigation and Screen Readers.
+
 • Pixel Perfect: Final implementation must match the High-Fidelity designs provided in D1.
