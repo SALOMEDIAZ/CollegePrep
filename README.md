@@ -69,6 +69,4 @@ All commit messages must be in English and follow the Conventional Commits stand
 
 • Componentization: UI must be broken down into small, reusable components.
 
-• Accessibility: All features must support Keyboard Navigation and Screen Readers.
-
 • Pixel Perfect: Final implementation must match the High-Fidelity designs provided in D1.
