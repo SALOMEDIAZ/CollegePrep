@@ -27,7 +27,7 @@ The project uses the following technologies to meet the performance and scalabil
 
 Follow these steps to set up the local development environment:
 
-1. Clone the repository: git clone [url-del-repo].
+1. Clone the repository: git clone
    
 2. Install dependencies: Run npm install.
    
