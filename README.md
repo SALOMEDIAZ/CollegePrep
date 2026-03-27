@@ -43,11 +43,8 @@ We follow a Feature Branch Workflow to maintain a stable main branch:
 
 • develop: Main integration branch for the team.
 
-• feat/feature-name: Dedicated branches for new features (e.g., feat/budget-logic).
-
 • fix/bug-name: Dedicated branches for bug fixes.
 
-Workflow: All features must be merged into develop via Pull Request before moving to main.
 
 **4. Commits Convention**
 
