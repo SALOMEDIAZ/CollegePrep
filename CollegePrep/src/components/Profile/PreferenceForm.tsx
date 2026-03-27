@@ -1,0 +1,1 @@
+// Checkboxes de Vegetariano, Vegan, etc.
