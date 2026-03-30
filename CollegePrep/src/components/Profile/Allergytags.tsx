@@ -1,1 +1,1 @@
-// Etiquetas de alergias 
+export {};

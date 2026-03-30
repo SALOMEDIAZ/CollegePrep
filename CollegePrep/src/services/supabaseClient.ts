@@ -1,9 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = 'https://pvyyaqxnjiklpmzbbruu.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2eXlhcXhuamlrbHBtemJicnV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NDM0MDIsImV4cCI6MjA5MDIxOTQwMn0.QT1I_8wjRa0YzpQPUuN00dSzH4DXCJkqbZ08z9N_OEk';
+const url = import.meta.env.VITE_SUPABASE_URL ?? "https://pvyyaqxnjiklpmzbbruu.supabase.co";
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!key) {
+  console.warn("CollegePrep: create .env from .env.example and set VITE_SUPABASE_ANON_KEY.");
+}
 
-export default supabase
-        
+const supabase = createClient(url, key || "missing-supabase-key");
+
+export default supabase;

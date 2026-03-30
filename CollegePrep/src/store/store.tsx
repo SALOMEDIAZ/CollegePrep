@@ -1,1 +1,1 @@
-//lo utilizaremos despues para redux
+export {};

@@ -1,31 +1,54 @@
-import { Route, Routes } from "react-router-dom";
-import NavBar from "../components/Common/NavBar";
-import Login from "../pages/LoginPage";
-import Signup from "../pages/SignupPage";
-import Recipes from "../pages/RecipesPage";
-import RequireAuth from "./RequireAuth";
-import Landing from "../pages/LandingPage";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import NavBar from "../components/Common/NavBar.tsx";
+import Login from "../pages/LoginPage.tsx";
+import Signup from "../pages/SignupPage.tsx";
+import Recipes from "../pages/RecipesPage.tsx";
+import RequireAuth from "./RequireAuth.tsx";
+import Landing from "../pages/LandingPage.tsx";
+import ProfilePage from "../pages/ProfilePage.tsx";
+import SettingsPage from "../pages/SettingsPage.tsx";
 import "./App.css";
 
-
 function AppRouter() {
-return (
+  const { pathname } = useLocation();
+  const hideGlobalNavBar =
+    pathname === "/" || pathname === "/landing" || pathname === "/profile" || pathname === "/settings";
+
+  return (
     <>
-    <NavBar />
-    <Routes>
-        <Route path="/" element={<Landing />} />
+      {!hideGlobalNavBar && <NavBar />}
+      <Routes>
+        <Route path="/" element={<Navigate to="/landing" replace />} />
+        <Route path="/landing" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Signup />} />
-
-        <Route path="/recipes" element={
+        <Route
+          path="/profile"
+          element={
             <RequireAuth>
-            <Recipes />
+              <ProfilePage />
             </RequireAuth>
-        }/>
-        //aqui ponen las otras rutas como profile, settings, etc asi como lo hice yo
-        </Routes>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RequireAuth>
+              <SettingsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/recipes"
+          element={
+            <RequireAuth>
+              <Recipes />
+            </RequireAuth>
+          }
+        />
+      </Routes>
     </>
-);
+  );
 }
 
 export default AppRouter;

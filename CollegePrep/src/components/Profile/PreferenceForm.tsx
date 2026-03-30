@@ -1,1 +1,1 @@
-// Checkboxes de Vegetariano, Vegan, etc.
+export {};
