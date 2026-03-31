@@ -87,8 +87,17 @@ export default function Landing() {
 
       <section className="landing-highlight" aria-labelledby="highlight-heading">
         <div className="landing-highlight-inner">
-          
+          <div className="landing-highlight-words" id="highlight-heading">
+            <p>Smart</p>
+            <p>Budget</p>
+            <p>Meals</p>
+          </div>
           <div className="landing-highlight-img-wrap">
+            <img
+              src={asset("Group 31.png")}
+              alt="Fresh prepared meals for smart budgeting"
+              className="landing-highlight-img"
+            />
           </div>
         </div>
       </section>

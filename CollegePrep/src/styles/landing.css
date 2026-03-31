@@ -52,7 +52,6 @@
     @apply rounded-full border-0 font-semibold normal-case text-white;
     background-color: #6b9e2a !important;
     border-color: transparent !important;
-    color: white !important;
   }
 
   .landing-btn-primary:hover {
