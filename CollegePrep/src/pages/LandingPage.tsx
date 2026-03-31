@@ -19,7 +19,10 @@ export default function Landing() {
           <Link to="/login" className="landing-login">
             Log in
           </Link>
-          <Link to="/register" className="btn btn-sm px-6 md:btn-md landing-btn-primary">
+          <Link
+            to="/register"
+            className="btn btn-sm px-6 md:btn-md landing-btn-primary"
+          >
             Get Started
           </Link>
         </div>
@@ -29,13 +32,18 @@ export default function Landing() {
         <div className="landing-hero-inner">
           <div className="landing-hero-copy">
             <h1 className="landing-hero-title">
-              Smart Meal Planning for <span className="landing-hero-accent">Busy Students</span>
+              Smart Meal Planning for{" "}
+              <span className="landing-hero-accent">Busy Students</span>
             </h1>
             <p className="landing-hero-p">
-              Plan affordable, balanced meals around your class schedule. CollegePrep helps you shop smarter, cook with
-              confidence, and skip the stress of last-minute food decisions.
+              Plan affordable, balanced meals around your class schedule.
+              CollegePrep helps you shop smarter, cook with confidence, and skip
+              the stress of last-minute food decisions.
             </p>
-            <Link to="/register" className="landing-hero-cta landing-btn-primary">
+            <Link
+              to="/register"
+              className="landing-hero-cta landing-btn-primary"
+            >
               Get Started
             </Link>
           </div>
@@ -71,8 +79,10 @@ export default function Landing() {
               About Us
             </h2>
             <p className="landing-about-p">
-              CollegePrep was built for students who are juggling lectures, work, and tight budgets. We combine recipe
-              discovery, realistic cost estimates, and personal preferences so you can eat well without overspending.
+              CollegePrep was built for students who are juggling lectures,
+              work, and tight budgets. We combine recipe discovery, realistic
+              cost estimates, and personal preferences so you can eat well
+              without overspending.
             </p>
           </div>
           <div className="landing-about-img-col">
@@ -85,28 +95,23 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="landing-highlight" aria-labelledby="highlight-heading">
+      <section
+        className="landing-highlight"
+        aria-labelledby="highlight-heading"
+      >
         <div className="landing-highlight-inner">
-          <div className="landing-highlight-words" id="highlight-heading">
-            <p>Smart</p>
-            <p>Budget</p>
-            <p>Meals</p>
-          </div>
-          <div className="landing-highlight-img-wrap">
-            <img
-              src={asset("Group 31.png")}
-              alt="Fresh prepared meals for smart budgeting"
-              className="landing-highlight-img"
-            />
-          </div>
+          <div className="landing-highlight-img-wrap"></div>
         </div>
       </section>
 
       <section className="landing-cta-band">
         <div className="landing-cta-inner">
-          <p className="landing-cta-line1">No more overspending. No more last-minute fast food.</p>
+          <p className="landing-cta-line1">
+            No more overspending. No more last-minute fast food.
+          </p>
           <p className="landing-cta-line2">
-            Be part of our community of students who share the same challenges as you.
+            Be part of our community of students who share the same challenges
+            as you.
           </p>
           <Link to="/register" className="landing-cta-btn landing-btn-primary">
             Get Started
@@ -122,7 +127,8 @@ export default function Landing() {
               <span className="landing-footer-brand-orange">Prep</span>
             </p>
             <p className="landing-footer-aside-p">
-              Smart meal planning tailored to student life—budgets, tastes, and busy schedules in one place.
+              Smart meal planning tailored to student life—budgets, tastes, and
+              busy schedules in one place.
             </p>
           </aside>
           <div className="landing-footer-cols">
