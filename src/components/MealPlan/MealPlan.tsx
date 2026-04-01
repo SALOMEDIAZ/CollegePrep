@@ -44,8 +44,6 @@ export default function MealPlan({ plan }: { plan: MealPlanViewModel }) {
         <div className="mp-budgetBarText">{pct}% of the weekly budget used</div>
       </div>
 
-      <div className="mp-weekTitle">{plan.title}</div>
-
       <div className="mp-days">
         {plan.days.map((d) => (
           <div key={d.date} className="mp-dayBlock">
@@ -77,4 +75,3 @@ export default function MealPlan({ plan }: { plan: MealPlanViewModel }) {
     </div>
   );
 }
-

@@ -23,6 +23,103 @@ export type ProfileRow = {
 
 export type ProfilePatch = Partial<Omit<ProfileRow, "id">>;
 
+type AllergyRow = {
+  id: string;
+  key: string | null;
+  name: string | null;
+  category: string | null;
+  created_at: string | null;
+};
+
+type AllergyKeywordRow = {
+  id: string;
+  allergy_key: string | null;
+  keyword: string | null;
+};
+
+type DietaryKeywordRow = {
+  keyword: string | null;
+};
+
+let allergyIndexPromise: Promise<Map<string, string>> | null = null;
+
+function normKey(s: string) {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[\u2019']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function getAllergyKeyIndex() {
+  if (allergyIndexPromise) return allergyIndexPromise;
+  allergyIndexPromise = (async () => {
+    const { data, error } = await supabase.from("allergies").select("key,name");
+    if (error) throw error;
+    const map = new Map<string, string>();
+    for (const row of (data ?? []) as Pick<AllergyRow, "key" | "name">[]) {
+      const key = String(row.key ?? "").trim();
+      const name = String(row.name ?? "").trim();
+      if (key) map.set(normKey(key), key);
+      if (name && key) map.set(normKey(name), key);
+    }
+    return map;
+  })();
+  return allergyIndexPromise;
+}
+
+export async function resolveAllergyKeys(allergyValues: string[]) {
+  const values = (Array.isArray(allergyValues) ? allergyValues : []).map((s) => String(s ?? "").trim()).filter(Boolean);
+  if (!values.length) return [];
+  const index = await getAllergyKeyIndex();
+  const out: string[] = [];
+  for (const v of values) {
+    const k = index.get(normKey(v));
+    out.push(k ?? v);
+  }
+  return Array.from(new Set(out.map((x) => String(x).trim()).filter(Boolean)));
+}
+
+export async function fetchAllergyKeywords(allergyKeysOrNames: string[]) {
+  const keys = await resolveAllergyKeys(allergyKeysOrNames);
+  if (!keys.length) return [];
+  const { data, error } = await supabase.from("allergy_keywords").select("keyword,allergy_key").in("allergy_key", keys);
+  if (error) throw error;
+  const rows = (data ?? []) as Array<Pick<AllergyKeywordRow, "keyword">>;
+  return rows.map((r) => String(r.keyword ?? "").trim()).filter(Boolean);
+}
+
+export async function fetchDietaryKeywords(dietKeys: string[]) {
+  const keys = (Array.isArray(dietKeys) ? dietKeys : []).map((s) => String(s ?? "").trim()).filter(Boolean);
+  if (!keys.length) return [];
+
+  const attempt = async (col: "dietary_key" | "diet_key") => {
+    const { data, error } = await supabase.from("dietary_keywords").select(`keyword,${col}`).in(col, keys);
+    if (error) return { data: null as null | unknown[], error };
+    return { data, error: null as null };
+  };
+
+  const a = await attempt("dietary_key");
+  if (!a.error) {
+    const rows = (a.data ?? []) as Array<DietaryKeywordRow>;
+    return rows.map((r) => String(r.keyword ?? "").trim()).filter(Boolean);
+  }
+
+  const msg = String((a.error as { message?: unknown })?.message ?? "");
+  if (msg.toLowerCase().includes("dietary_key")) {
+    const b = await attempt("diet_key");
+    if (b.error) throw b.error;
+    const rows = (b.data ?? []) as Array<DietaryKeywordRow>;
+    return rows.map((r) => String(r.keyword ?? "").trim()).filter(Boolean);
+  }
+
+  throw a.error;
+}
+
 export async function fetchSessionUser() {
   const { data } = await supabase.auth.getSession();
   return data.session?.user ?? null;

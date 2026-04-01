@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { searchMealsByFirstLetter, searchMealsByName, type MealDbMeal } from "../services/api";
 import RecipeCard from "../components/Recipes/RecipeCard";
 import "../styles/recipes.css";
-import { ensureProfileRow, fetchSessionUser, type ProfileRow } from "../services/profileSupabase";
+import {
+  ensureProfileRow,
+  fetchAllergyKeywords,
+  fetchDietaryKeywords,
+  fetchSessionUser,
+  type ProfileRow,
+} from "../services/profileSupabase";
 
 function norm(s: string) {
   return s
@@ -26,179 +32,14 @@ function extractMealIngredientNames(meal: MealDbMeal) {
   return out;
 }
 
-function buildAvoidKeywordSet(profile: ProfileRow | null) {
-  const allergies = (Array.isArray(profile?.allergies) ? profile?.allergies : []) ?? [];
-  const avoid = new Set<string>();
-
-  const add = (s: string) => {
-    const n = norm(s);
-    if (n) avoid.add(n);
-  };
-
-  for (const a of allergies) add(a);
-
-  const allergyMap: Record<string, string[]> = {
-    milk: ["milk", "cheese", "butter", "cream", "yogurt", "whey", "casein"],
-    lactose: ["milk", "cheese", "butter", "cream", "yogurt", "whey", "casein"],
-    peanut: ["peanut", "groundnut"],
-    nuts: ["almond", "walnut", "cashew", "pecan", "hazelnut", "pistachio", "nut"],
-    egg: ["egg"],
-    soy: ["soy", "soya", "tofu"],
-    sesame: ["sesame", "tahini"],
-    gluten: ["wheat", "flour", "bread", "pasta", "noodle", "barley", "rye", "couscous", "cracker"],
-    wheat: ["wheat", "flour", "bread", "pasta", "noodle"],
-    shellfish: ["shrimp", "prawn", "crab", "lobster", "shellfish"],
-    fish: [
-      "fish",
-      "seafood",
-      "white fish",
-      "fish fillet",
-      "fish fillets",
-      "cod",
-      "haddock",
-      "tilapia",
-      "mackerel",
-      "sardine",
-      "sardines",
-      "trout",
-      "hake",
-      "pollock",
-      "halibut",
-      "catfish",
-      "swordfish",
-      "snapper",
-      "sea bass",
-      "seabass",
-      "bream",
-      "sole",
-      "herring",
-      "salmon",
-      "tuna",
-      "anchovy",
-      "anchovies",
-    ],
-  };
-
-  for (const a of allergies) {
-    const key = norm(String(a));
-    const extras = allergyMap[key];
-    if (extras) extras.forEach(add);
-  }
-
-  if (profile?.lactose_free) allergyMap.lactose.forEach(add);
-  if (profile?.gluten_free) allergyMap.gluten.forEach(add);
-
-  return avoid;
-}
-
-function buildDietKeywordSet(profile: ProfileRow | null) {
-  const vegan = !!profile?.vegan;
-  const vegetarian = !vegan && !!profile?.vegetarian;
-
-  if (!vegan && !vegetarian) return { vegan, vegetarian, avoid: new Set<string>() };
-
-  const baseNoMeat = [
-    "beef",
-    "steak",
-    "mince",
-    "ground beef",
-    "beef mince",
-    "oxtail",
-    "ox tail",
-    "pork",
-    "ham hock",
-    "pork belly",
-    "pork chop",
-    "ribs",
-    "rib",
-    "chicken",
-    "chicken breast",
-    "chicken thigh",
-    "drumstick",
-    "turkey",
-    "lamb",
-    "veal",
-    "duck",
-    "goat",
-    "rabbit",
-    "venison",
-    "bacon",
-    "ham",
-    "sausage",
-    "chorizo",
-    "salami",
-    "prosciutto",
-    "pancetta",
-    "mortadella",
-    "pepperoni",
-    "meat",
-    "meatball",
-    "meatballs",
-    "fish",
-    "seafood",
-    "white fish",
-    "fish fillet",
-    "fish fillets",
-    "salmon",
-    "tuna",
-    "cod",
-    "haddock",
-    "tilapia",
-    "mackerel",
-    "sardine",
-    "sardines",
-    "trout",
-    "hake",
-    "pollock",
-    "halibut",
-    "catfish",
-    "swordfish",
-    "snapper",
-    "sea bass",
-    "seabass",
-    "bream",
-    "sole",
-    "herring",
-    "anchovy",
-    "anchovies",
-    "fish sauce",
-    "shrimp paste",
-    "shrimp",
-    "prawn",
-    "crab",
-    "lobster",
-    "clam",
-    "clams",
-    "mussel",
-    "mussels",
-    "oyster",
-    "oysters",
-    "scallop",
-    "scallops",
-    "squid",
-    "octopus",
-    "calamari",
-    "gelatin",
-    "gelatine",
-    "lard",
-    "tallow",
-    "suet",
-    "beef stock",
-    "beef broth",
-    "chicken stock",
-    "chicken broth",
-    "fish stock",
-    "fish broth",
-  ];
-
-  const veganExtras = ["egg", "milk", "cheese", "butter", "cream", "yogurt", "honey"];
-
-  const avoid = new Set<string>();
-  const add = (s: string) => avoid.add(norm(s));
-  baseNoMeat.forEach(add);
-  if (vegan) veganExtras.forEach(add);
-
-  return { vegan, vegetarian, avoid };
+function dietKeysFromProfile(profile: ProfileRow | null) {
+  if (!profile) return [];
+  const keys: string[] = [];
+  if (profile.vegan) keys.push("vegan");
+  else if (profile.vegetarian) keys.push("vegetarian");
+  if (profile.gluten_free) keys.push("gluten_free");
+  if (profile.lactose_free) keys.push("lactose_free");
+  return keys;
 }
 
 function matchesAnyKeyword(ingredient: string, keywords: Set<string>) {
@@ -245,10 +86,10 @@ const RecipesPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [meals, setMeals] = useState<MealDbMeal[]>([]);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [allergyAvoid, setAllergyAvoid] = useState<Set<string>>(() => new Set());
+  const [dietAvoid, setDietAvoid] = useState<Set<string>>(() => new Set());
 
   const isSearchMode = useMemo(() => submittedQuery.trim().length > 0, [submittedQuery]);
-  const allergyAvoid = useMemo(() => buildAvoidKeywordSet(profile), [profile]);
-  const dietAvoid = useMemo(() => buildDietKeywordSet(profile).avoid, [profile]);
 
   useEffect(() => {
     let alive = true;
@@ -264,6 +105,62 @@ const RecipesPage = () => {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function run() {
+      if (!profile) {
+        setAllergyAvoid(new Set());
+        setDietAvoid(new Set());
+        return;
+      }
+
+      const allergyValues = (Array.isArray(profile.allergies) ? profile.allergies : []).map((x) => String(x ?? ""));
+      const dietKeys = dietKeysFromProfile(profile);
+
+      try {
+        const [allergyKeywords, dietKeywords] = await Promise.all([
+          fetchAllergyKeywords(allergyValues),
+          fetchDietaryKeywords(dietKeys),
+        ]);
+        if (!alive) return;
+
+        const a = new Set<string>();
+        for (const v of allergyValues) {
+          const n = norm(String(v));
+          if (n) a.add(n);
+        }
+        for (const kw of allergyKeywords) {
+          const n = norm(String(kw));
+          if (n) a.add(n);
+        }
+
+        const d = new Set<string>();
+        for (const k of dietKeys) {
+          const n = norm(String(k));
+          if (n) d.add(n);
+        }
+        for (const kw of dietKeywords) {
+          const n = norm(String(kw));
+          if (n) d.add(n);
+        }
+
+        setAllergyAvoid(a);
+        setDietAvoid(d);
+      } catch {
+        if (!alive) return;
+        setAllergyAvoid(new Set(allergyValues.map((v) => norm(v)).filter(Boolean)));
+        setDietAvoid(new Set(dietKeys.map((k) => norm(k)).filter(Boolean)));
+      }
+    }
+
+    run();
+
+    return () => {
+      alive = false;
+    };
+  }, [profile]);
 
   useEffect(() => {
     let alive = true;

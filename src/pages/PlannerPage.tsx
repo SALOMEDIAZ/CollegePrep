@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import supabase from "../services/supabaseClient";
 import { getMealById, searchMealsByFirstLetter, type MealDbMeal } from "../services/api";
 import CreatePlanModal, { type CreatePlanValues } from "../components/MealPlan/CreatePlanModal";
 import MealPlan, { type MealPlanDay, type MealPlanMeal, type MealPlanViewModel, type MealType, type Weekday } from "../components/MealPlan/MealPlan";
-import { ensureProfileRow, fetchSessionUser, type ProfileRow } from "../services/profileSupabase";
+import {
+  ensureProfileRow,
+  fetchAllergyKeywords,
+  fetchDietaryKeywords,
+  fetchSessionUser,
+  type ProfileRow,
+} from "../services/profileSupabase";
 import "../styles/recipes.css";
 
 type MealPlanRow = {
@@ -130,6 +136,26 @@ function toISODate(d: Date) {
   return `${y}-${m}-${dd}`;
 }
 
+function fromISODate(s: string) {
+  const [y, m, d] = s.split("-").map((x) => Number(x));
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  dt.setHours(0, 0, 0, 0);
+  return dt;
+}
+
+function addDaysISO(iso: string, delta: number) {
+  const dt = fromISODate(iso);
+  dt.setDate(dt.getDate() + delta);
+  return toISODate(dt);
+}
+
+function formatDayTitle(iso: string) {
+  const dt = fromISODate(iso);
+  const wd = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(dt);
+  const md = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(dt);
+  return `${wd}, ${md}`;
+}
+
 function formatWeekTitle(start: Date, end: Date) {
   const m = new Intl.DateTimeFormat("en-US", { month: "short" });
   return `Next week, ${m.format(start)} ${start.getDate()}-${end.getDate()}`;
@@ -157,179 +183,46 @@ function extractMealIngredientNames(meal: MealDbMeal) {
   return out;
 }
 
-function buildAvoidKeywordSet(profile: ProfileRow | null) {
-  const allergies = (Array.isArray(profile?.allergies) ? profile?.allergies : []) ?? [];
-  const avoid = new Set<string>();
-
-  const add = (s: string) => {
-    const n = norm(s);
-    if (n) avoid.add(n);
-  };
-
-  for (const a of allergies) add(a);
-
-  const allergyMap: Record<string, string[]> = {
-    milk: ["milk", "cheese", "butter", "cream", "yogurt", "whey", "casein"],
-    lactose: ["milk", "cheese", "butter", "cream", "yogurt", "whey", "casein"],
-    peanut: ["peanut", "groundnut"],
-    nuts: ["almond", "walnut", "cashew", "pecan", "hazelnut", "pistachio", "nut"],
-    egg: ["egg"],
-    soy: ["soy", "soya", "tofu"],
-    sesame: ["sesame", "tahini"],
-    gluten: ["wheat", "flour", "bread", "pasta", "noodle", "barley", "rye", "couscous", "cracker"],
-    wheat: ["wheat", "flour", "bread", "pasta", "noodle"],
-    shellfish: ["shrimp", "prawn", "crab", "lobster", "shellfish"],
-    fish: [
-      "fish",
-      "seafood",
-      "white fish",
-      "fish fillet",
-      "fish fillets",
-      "cod",
-      "haddock",
-      "tilapia",
-      "mackerel",
-      "sardine",
-      "sardines",
-      "trout",
-      "hake",
-      "pollock",
-      "halibut",
-      "catfish",
-      "swordfish",
-      "snapper",
-      "sea bass",
-      "seabass",
-      "bream",
-      "sole",
-      "herring",
-      "salmon",
-      "tuna",
-      "anchovy",
-      "anchovies",
-    ],
-  };
-
-  for (const a of allergies) {
-    const key = norm(String(a));
-    const extras = allergyMap[key];
-    if (extras) extras.forEach(add);
-  }
-
-  if (profile?.lactose_free) allergyMap.lactose.forEach(add);
-  if (profile?.gluten_free) allergyMap.gluten.forEach(add);
-
-  return avoid;
+function dietKeysFromProfile(profile: ProfileRow | null) {
+  if (!profile) return [];
+  const keys: string[] = [];
+  if (profile.vegan) keys.push("vegan");
+  else if (profile.vegetarian) keys.push("vegetarian");
+  if (profile.gluten_free) keys.push("gluten_free");
+  if (profile.lactose_free) keys.push("lactose_free");
+  return keys;
 }
 
-function buildDietKeywordSet(profile: ProfileRow | null) {
-  const vegan = !!profile?.vegan;
-  const vegetarian = !vegan && !!profile?.vegetarian;
+async function buildRestrictionKeywordSets(profile: ProfileRow | null) {
+  if (!profile) return { allergyAvoid: new Set<string>(), dietAvoid: new Set<string>() };
+  const allergyValues = (Array.isArray(profile.allergies) ? profile.allergies : []).map((x) => String(x ?? ""));
+  const dietKeys = dietKeysFromProfile(profile);
+  const [allergyKeywords, dietKeywords] = await Promise.all([
+    fetchAllergyKeywords(allergyValues),
+    fetchDietaryKeywords(dietKeys),
+  ]);
 
-  if (!vegan && !vegetarian) return { avoid: new Set<string>() };
+  const allergyAvoid = new Set<string>();
+  for (const v of allergyValues) {
+    const n = norm(String(v));
+    if (n) allergyAvoid.add(n);
+  }
+  for (const kw of allergyKeywords) {
+    const n = norm(String(kw));
+    if (n) allergyAvoid.add(n);
+  }
 
-  const baseNoMeat = [
-    "beef",
-    "steak",
-    "mince",
-    "ground beef",
-    "beef mince",
-    "oxtail",
-    "ox tail",
-    "pork",
-    "ham hock",
-    "pork belly",
-    "pork chop",
-    "ribs",
-    "rib",
-    "chicken",
-    "chicken breast",
-    "chicken thigh",
-    "drumstick",
-    "turkey",
-    "lamb",
-    "veal",
-    "duck",
-    "goat",
-    "rabbit",
-    "venison",
-    "bacon",
-    "ham",
-    "sausage",
-    "chorizo",
-    "salami",
-    "prosciutto",
-    "pancetta",
-    "mortadella",
-    "pepperoni",
-    "meat",
-    "meatball",
-    "meatballs",
-    "fish",
-    "seafood",
-    "white fish",
-    "fish fillet",
-    "fish fillets",
-    "salmon",
-    "tuna",
-    "cod",
-    "haddock",
-    "tilapia",
-    "mackerel",
-    "sardine",
-    "sardines",
-    "trout",
-    "hake",
-    "pollock",
-    "halibut",
-    "catfish",
-    "swordfish",
-    "snapper",
-    "sea bass",
-    "seabass",
-    "bream",
-    "sole",
-    "herring",
-    "anchovy",
-    "anchovies",
-    "fish sauce",
-    "shrimp paste",
-    "shrimp",
-    "prawn",
-    "crab",
-    "lobster",
-    "clam",
-    "clams",
-    "mussel",
-    "mussels",
-    "oyster",
-    "oysters",
-    "scallop",
-    "scallops",
-    "squid",
-    "octopus",
-    "calamari",
-    "gelatin",
-    "gelatine",
-    "lard",
-    "tallow",
-    "suet",
-    "beef stock",
-    "beef broth",
-    "chicken stock",
-    "chicken broth",
-    "fish stock",
-    "fish broth",
-  ];
+  const dietAvoid = new Set<string>();
+  for (const k of dietKeys) {
+    const n = norm(String(k));
+    if (n) dietAvoid.add(n);
+  }
+  for (const kw of dietKeywords) {
+    const n = norm(String(kw));
+    if (n) dietAvoid.add(n);
+  }
 
-  const veganExtras = ["egg", "milk", "cheese", "butter", "cream", "yogurt", "honey"];
-
-  const avoid = new Set<string>();
-  const add = (s: string) => avoid.add(norm(s));
-  baseNoMeat.forEach(add);
-  if (vegan) veganExtras.forEach(add);
-
-  return { avoid };
+  return { allergyAvoid, dietAvoid };
 }
 
 function matchesAnyKeyword(text: string, keywords: Set<string>) {
@@ -383,19 +276,6 @@ function localLastPlanKey(userId: string) {
   return `mealplan:last:${userId}`;
 }
 
-async function fetchUpcomingPlan(userId: string) {
-  const today = toISODate(new Date());
-  const { data, error } = await supabase
-    .from("meal_plans")
-    .select("*")
-    .eq("user_id", userId)
-    .gte("end_date", today)
-    .order("start_date", { ascending: true })
-    .limit(1);
-  if (error) throw error;
-  return ((data ?? [])[0] as MealPlanRow | undefined) ?? null;
-}
-
 async function fetchSavedRecipeIds(userId: string) {
   const { data, error } = await supabase.from("saved_recipes").select("recipe_id").eq("user_id", userId);
   if (error) throw error;
@@ -403,9 +283,7 @@ async function fetchSavedRecipeIds(userId: string) {
   return rows.map((r) => String(r.recipe_id)).filter(Boolean);
 }
 
-async function buildNewRecipePool(profile: ProfileRow | null, minCount: number, excludeIds: Set<string>) {
-  const allergyAvoid = buildAvoidKeywordSet(profile);
-  const dietAvoid = buildDietKeywordSet(profile).avoid;
+async function buildNewRecipePool(allergyAvoid: Set<string>, dietAvoid: Set<string>, minCount: number, excludeIds: Set<string>) {
   const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
   const pickedLetters = new Set<string>();
   const pool: string[] = [];
@@ -464,10 +342,62 @@ const MealPlanPage = () => {
   const [plan, setPlan] = useState<MealPlanViewModel | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
+  const [plans, setPlans] = useState<MealPlanRow[]>([]);
+  const [planIndex, setPlanIndex] = useState<number>(-1);
+  const [viewMode, setViewMode] = useState<"week" | "day">("week");
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const weekStart = useMemo(() => startOfNextWeek(new Date()), []);
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
   const weekTitle = useMemo(() => formatWeekTitle(weekStart, weekEnd), [weekStart, weekEnd]);
+
+  async function fetchAllPlans(uid: string) {
+    const { data, error } = await supabase.from("meal_plans").select("*").eq("user_id", uid).order("start_date", { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as MealPlanRow[];
+  }
+
+  function planTitleForRow(row: MealPlanRow) {
+    const s = new Date(row.start_date);
+    const e = new Date(row.end_date);
+    const label = (() => {
+      const now = new Date();
+      if (now >= new Date(row.start_date) && now <= new Date(row.end_date)) return "This week";
+      return "Week";
+    })();
+    const m = new Intl.DateTimeFormat("en-US", { month: "short" });
+    return `${label}, ${m.format(s)} ${s.getDate()}-${e.getDate()}`;
+  }
+
+  function defaultSelectedDay(row: MealPlanRow) {
+    const now = new Date();
+    const s = new Date(row.start_date);
+    const e = new Date(row.end_date);
+    if (now >= s && now <= e) return toISODate(now);
+    return row.start_date;
+  }
+
+  const loadPlanByIndex = useCallback(async (uid: string, rows: MealPlanRow[], idx: number) => {
+    const row = rows[idx];
+    if (!row) {
+      setPlan(null);
+      setPlanId(null);
+      setSelectedDay(null);
+      return;
+    }
+    const pid = row.id;
+    setPlanId(pid);
+    const key = localPlanKey(uid, pid);
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw) as MealPlanViewModel;
+      setPlan({ ...parsed, title: planTitleForRow(row) });
+    } else {
+      const budget = Number(row.budget ?? 0) || 0;
+      setPlan({ title: planTitleForRow(row), budget, used: 0, days: [] });
+    }
+    setSelectedDay(defaultSelectedDay(row));
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -479,24 +409,21 @@ const MealPlanPage = () => {
         if (!u) return;
         if (!alive) return;
         setUserId(u.id);
-        const upcoming = await fetchUpcomingPlan(u.id);
+        const rows = await fetchAllPlans(u.id);
         if (!alive) return;
-        if (!upcoming) {
+        setPlans(rows);
+        if (!rows.length) {
           setPlan(null);
           setPlanId(null);
+          setPlanIndex(-1);
           return;
         }
-        const pid = upcoming.id;
-        setPlanId(pid);
-        const key = localPlanKey(u.id, pid);
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const parsed = JSON.parse(raw) as MealPlanViewModel;
-          setPlan(parsed);
-          return;
-        }
-        const budget = Number(upcoming.budget ?? 0) || 0;
-        setPlan({ title: String(upcoming.name ?? weekTitle), budget, used: 0, days: [] });
+        // pick nearest upcoming, else last
+        const todayIso = toISODate(new Date());
+        let idx = rows.findIndex((r) => r.end_date >= todayIso);
+        if (idx < 0) idx = rows.length - 1;
+        setPlanIndex(idx);
+        await loadPlanByIndex(u.id, rows, idx);
       } catch (e) {
         if (!alive) return;
         setError(e instanceof Error ? e.message : String(e));
@@ -510,7 +437,7 @@ const MealPlanPage = () => {
     return () => {
       alive = false;
     };
-  }, [weekTitle]);
+  }, [weekTitle, loadPlanByIndex]);
 
   async function createWeekPlan(values: CreatePlanValues) {
     if (!userId) return;
@@ -527,9 +454,10 @@ const MealPlanPage = () => {
       const savedIdsArr = await fetchSavedRecipeIds(userId);
       const savedIds = new Set(savedIdsArr);
 
+      const { allergyAvoid, dietAvoid } = await buildRestrictionKeywordSets(profile);
       const newPool = values.onlySavedRecipes
         ? []
-        : await buildNewRecipePool(profile, 120, values.onlyNewRecipes ? savedIds : new Set<string>());
+        : await buildNewRecipePool(allergyAvoid, dietAvoid, 120, values.onlyNewRecipes ? savedIds : new Set<string>());
 
       const planRow = {
         user_id: userId,
@@ -650,8 +578,17 @@ const MealPlanPage = () => {
       if (planErr) throw planErr;
       localStorage.removeItem(localPlanKey(userId, planId));
       localStorage.removeItem(localLastPlanKey(userId));
-      setPlan(null);
-      setPlanId(null);
+      const remaining = plans.filter((p) => p.id !== planId);
+      setPlans(remaining);
+      if (!remaining.length) {
+        setPlan(null);
+        setPlanId(null);
+        setPlanIndex(-1);
+        return;
+      }
+      const idx = Math.max(0, Math.min(planIndex, remaining.length - 1));
+      setPlanIndex(idx);
+      await loadPlanByIndex(userId, remaining, idx);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -659,33 +596,107 @@ const MealPlanPage = () => {
     }
   }
 
+  const filteredPlan: MealPlanViewModel | null = useMemo(() => {
+    if (!plan) return null;
+    if (viewMode === "week") return plan;
+    const day = selectedDay;
+    if (!day) return plan;
+    const existing = plan.days.find((d) => d.date === day);
+    const dayVm: MealPlanDay = existing ?? { date: day, weekday: weekdayFromDate(fromISODate(day)), meals: [] };
+    return { ...plan, days: [dayVm] };
+  }, [plan, viewMode, selectedDay]);
+
   if (loading) return <div className="recipes-page"><div className="recipes-wrap"><p className="recipes-status">Loading…</p></div></div>;
+
+  const currentRow = planIndex >= 0 ? plans[planIndex] : null;
+  const headerTitle =
+    viewMode === "day" && selectedDay ? formatDayTitle(selectedDay) : plan?.title ?? currentRow?.name ?? weekTitle;
+
+  const canGoPrev =
+    plans.length > 0 &&
+    (viewMode === "week"
+      ? planIndex > 0
+      : !!currentRow && !!selectedDay && (selectedDay > currentRow.start_date || planIndex > 0));
+
+  const canGoNext =
+    plans.length > 0 &&
+    (viewMode === "week"
+      ? planIndex >= 0 && planIndex < plans.length - 1
+      : !!currentRow && !!selectedDay && (selectedDay < currentRow.end_date || planIndex < plans.length - 1));
+
+  async function gotoPrevNext(delta: number) {
+    if (!userId) return;
+    if (viewMode === "week") {
+      const newIdx = planIndex + delta;
+      if (newIdx < 0 || newIdx >= plans.length) return;
+      setPlanIndex(newIdx);
+      await loadPlanByIndex(userId, plans, newIdx);
+      return;
+    }
+    if (!currentRow || !selectedDay) return;
+    const next = addDaysISO(selectedDay, delta);
+    if (next >= currentRow.start_date && next <= currentRow.end_date) {
+      setSelectedDay(next);
+      return;
+    }
+    const newPlanIndex = planIndex + delta;
+    if (newPlanIndex < 0 || newPlanIndex >= plans.length) return;
+    setPlanIndex(newPlanIndex);
+    await loadPlanByIndex(userId, plans, newPlanIndex);
+    const target = delta < 0 ? plans[newPlanIndex].end_date : plans[newPlanIndex].start_date;
+    setSelectedDay(target);
+  }
 
   return (
     <div className="recipes-page mp-page">
       <div className="recipes-wrap mp-wrap">
         {error ? <p className="recipes-error">{error}</p> : null}
 
+        <div className="mp-navRow">
+          <button type="button" className="mp-arrowBtn" onClick={() => gotoPrevNext(-1)} disabled={!canGoPrev}>
+            ‹
+          </button>
+          <div className="mp-navTitle">{headerTitle}</div>
+          <button type="button" className="mp-arrowBtn" onClick={() => gotoPrevNext(1)} disabled={!canGoNext}>
+            ›
+          </button>
+        </div>
+        <div className="mp-segment">
+          <button
+            type="button"
+            className={`mp-segBtn ${viewMode === "day" ? "mp-segBtn--active" : ""}`}
+            onClick={() => {
+              setViewMode("day");
+              if (currentRow && !selectedDay) setSelectedDay(defaultSelectedDay(currentRow));
+            }}
+          >
+            Day
+          </button>
+          <button
+            type="button"
+            className={`mp-segBtn ${viewMode === "week" ? "mp-segBtn--active" : ""}`}
+            onClick={() => setViewMode("week")}
+          >
+            Week
+          </button>
+        </div>
+
         {!plan ? (
           <div className="mp-empty">
-            <div className="mp-ring">
-              <div className="mp-ringInner">0%</div>
-            </div>
-            <div className="mp-emptyTitle">{weekTitle}</div>
             <button type="button" className="mp-primaryBtn" onClick={() => setModalOpen(true)}>
               Create week plan
             </button>
           </div>
-        ) : (
+        ) : filteredPlan ? (
           <div>
-            <div className="mp-planActions">
+            <MealPlan plan={filteredPlan} />
+            <div className="mp-bottomActions">
               <button type="button" className="mp-dangerBtn" disabled={creating || deleting} onClick={deleteCurrentPlan}>
                 Delete plan
               </button>
             </div>
-            <MealPlan plan={plan} />
           </div>
-        )}
+        ) : null}
 
         <CreatePlanModal
           open={modalOpen}
