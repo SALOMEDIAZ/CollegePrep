@@ -350,6 +350,7 @@
   border-radius: 12px;
   padding: 14px 16px;
   min-height: 92px;
+  min-width: 0;
 }
 
 .recipe-detail-stepTitle {
@@ -363,6 +364,8 @@
   font-size: 13px;
   line-height: 1.25;
   color: #334155;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 @media (max-width: 1020px) {
@@ -406,6 +409,348 @@
 
 @media (max-width: 640px) {
   .recipe-detail-ingredients {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mp-wrap {
+  max-width: 1120px;
+}
+
+.mp-empty {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.mp-ring {
+  width: 110px;
+  height: 110px;
+  border-radius: 999px;
+  background: conic-gradient(#f97316 0 0, #e5e7eb 0 360deg);
+  display: grid;
+  place-items: center;
+  border: 1px solid #e5e7eb;
+}
+
+.mp-ringInner {
+  width: 86px;
+  height: 86px;
+  border-radius: 999px;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #f97316;
+  font-size: 22px;
+}
+
+.mp-emptyTitle {
+  font-size: 28px;
+  color: #3f3f46;
+}
+
+.mp-primaryBtn {
+  appearance: none;
+  border: 0;
+  background: #86a600;
+  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mp-primaryBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mp-modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  z-index: 50;
+}
+
+.mp-modal {
+  width: min(460px, 92vw);
+  background: #ffffff;
+  border-radius: 26px;
+  padding: 22px 22px 18px;
+  position: relative;
+  max-height: min(720px, 86vh);
+  overflow-y: auto;
+}
+
+.mp-modalClose {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  font-size: 38px;
+  line-height: 1;
+  color: #71717a;
+  cursor: pointer;
+}
+
+.mp-modalTitle {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 500;
+  color: #86a600;
+  margin-top: 10px;
+}
+
+.mp-modalSection {
+  margin-top: 14px;
+}
+
+.mp-modalSectionTitle {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #3f3f46;
+  margin-bottom: 10px;
+}
+
+.mp-slider {
+  width: 100%;
+  accent-color: #86a600;
+}
+
+.mp-modalValue {
+  text-align: right;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 8px;
+}
+
+.mp-modalPrefs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.mp-checkboxRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 18px;
+  color: #111827;
+}
+
+.mp-checkboxRow input {
+  width: 22px;
+  height: 22px;
+  accent-color: #86a600;
+}
+
+.mp-modalHint {
+  margin-top: 8px;
+  text-align: center;
+  color: #52525b;
+  font-size: 14px;
+}
+
+.mp-dayGrid {
+  display: grid;
+  grid-template-columns: 70px repeat(3, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.mp-dayGridHead {
+  text-align: center;
+  font-weight: 700;
+  color: #3f3f46;
+}
+
+.mp-dayRow {
+  display: contents;
+}
+
+.mp-dayCell {
+  height: 40px;
+  display: grid;
+  place-items: center;
+}
+
+.mp-dayLabel {
+  justify-self: start;
+  padding-left: 8px;
+  font-weight: 700;
+  color: #86a600;
+}
+
+.mp-dayCheck input {
+  width: 26px;
+  height: 26px;
+  accent-color: #86a600;
+}
+
+.mp-plan {
+  padding-top: 14px;
+}
+
+.mp-budgetBar {
+  position: relative;
+  height: 34px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.mp-budgetBarFill {
+  height: 100%;
+  background: #dc2626;
+}
+
+.mp-budgetBarText {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+
+.mp-weekTitle {
+  margin-top: 18px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mp-days {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.mp-dayBlock {
+  border-top: 2px solid #86a600;
+  padding-top: 14px;
+}
+
+.mp-dayHeaderTitle {
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.mp-dayHeaderDate {
+  font-weight: 600;
+  color: #52525b;
+  margin-left: 6px;
+}
+
+.mp-mealRow {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mp-mealCard {
+  background: #0b0b0c;
+  color: #ffffff;
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.mp-mealImg {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #111827;
+}
+
+.mp-mealInfo {
+  min-width: 0;
+}
+
+.mp-mealType {
+  font-size: 12px;
+  font-weight: 800;
+  color: #86a600;
+}
+
+.mp-mealName {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mp-mealCost {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #86a600;
+  font-weight: 800;
+}
+
+.mp-seeRecipeBtn {
+  background: #14532d;
+  color: #ffffff;
+  text-decoration: none;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.mp-emptyDay {
+  color: #52525b;
+  font-weight: 700;
+  padding: 18px 4px;
+}
+
+.mp-planActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.mp-dangerBtn {
+  appearance: none;
+  border: 0;
+  background: #dc2626;
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mp-dangerBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 920px) {
+  .mp-mealRow {
     grid-template-columns: 1fr;
   }
 }

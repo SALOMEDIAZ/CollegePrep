@@ -147,7 +147,7 @@ function splitSteps(instructions: string | null) {
   const MAX_STEP_CHARS = 220;
   const isOnlyNumber = (s: string) => /^\d+\s*[.)-]?\s*$/.test(s);
   const stripLeadingNumber = (s: string) => s.replace(/^\s*\d+\s*[.)-]?\s*/g, "").trim();
-  const isJunk = (s: string) => !s || isOnlyNumber(s) || /^[\W_]+$/.test(s);
+  const isJunk = (s: string) => !s || isOnlyNumber(s) || /^[\W_]+$/.test(s) || /\bstep\b/i.test(s);
   const splitSentences = (s: string) =>
     s
       .split(/(?<=[.!?])\s+/g)
