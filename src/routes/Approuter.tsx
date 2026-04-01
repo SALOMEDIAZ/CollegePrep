@@ -3,6 +3,8 @@ import NavBar from "../components/Common/NavBar.tsx";
 import Login from "../pages/LoginPage.tsx";
 import Signup from "../pages/SignupPage.tsx";
 import Recipes from "../pages/RecipesPage.tsx";
+import RecipeDetailPage from "../pages/RecipeDetailPage.tsx";
+import PlannerPage from "../pages/PlannerPage.tsx";
 import RequireAuth from "./RequireAuth.tsx";
 import Landing from "../pages/LandingPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
@@ -43,6 +45,22 @@ function AppRouter() {
           element={
             <RequireAuth>
               <Recipes />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/recipes/:id"
+          element={
+            <RequireAuth>
+              <RecipeDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/mealplan"
+          element={
+            <RequireAuth>
+              <PlannerPage />
             </RequireAuth>
           }
         />

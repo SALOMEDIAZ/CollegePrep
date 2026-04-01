@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.recipes-page {
+  min-height: 100vh;
+  background: #ffffff;
+  color: #222;
+}
+
+.recipes-wrap {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 18px 56px;
+  position: relative;
+}
+
+.recipes-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/assets/images-icons/textura.png"), url("/assets/images-icons/Textura.png");
+  background-repeat: repeat, repeat;
+  background-size: 520px auto, 520px auto;
+  background-position: 0 0, 0 0;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.recipes-content {
+  position: relative;
+  z-index: 1;
+}
+
+.recipes-title {
+  font-size: 38px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin: 0;
+  color: #7aa200;
+}
+
+.recipes-subrow {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.recipes-filterbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recipes-chip {
+  appearance: none;
+  border: 1px solid #cfe1a1;
+  background: #ffffff;
+  color: #6b7b3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.recipes-chip[aria-pressed="true"] {
+  background: #eff7dc;
+  border-color: #a9cc4a;
+  color: #4b5b1b;
+}
+
+.recipes-search {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+  min-width: 240px;
+}
+
+.recipes-search-input {
+  flex: 1;
+  min-width: 220px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #fff;
+  outline: none;
+}
+
+.recipes-search-input:focus {
+  border-color: #b8d36b;
+  box-shadow: 0 0 0 4px rgba(184, 211, 107, 0.22);
+}
+
+.recipes-search-btn {
+  border: 1px solid #b8d36b;
+  background: #b8d36b;
+  color: #1f2a0e;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+}
+
+.recipes-search-btn:disabled {
+  opacity: 0.6;
+}
+
+.recipes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 22px;
+}
+
+@media (max-width: 1020px) {
+  .recipes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .recipes-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.recipes-status {
+  margin-top: 14px;
+  font-size: 14px;
+  color: #52525b;
+}
+
+.recipes-error {
+  margin-top: 14px;
+  font-size: 14px;
+  color: #b42318;
+}

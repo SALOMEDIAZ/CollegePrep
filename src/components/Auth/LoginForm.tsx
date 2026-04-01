@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import supabase from "../../services/supabaseClient";
+import supabase, { isSupabaseConfigured } from "../../services/supabaseClient";
 
 const LoginForm = () => {
     const navigate = useNavigate();
@@ -13,6 +13,11 @@ const LoginForm = () => {
 const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+
+    if (!isSupabaseConfigured) {
+    setError("Missing Supabase config. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart the dev server.");
+    return;
+    }
 
     if (!email || !password) {
     setError("Please enter your email and password.");
@@ -41,7 +46,7 @@ const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 return (
     <form onSubmit={onSubmit} style={{ maxWidth: 480, margin: "0 auto" }}>
     <div>
-        <form>Email</form>
+        <label htmlFor="email">Email</label>
         <input
         id="email"
         type="email"
@@ -53,7 +58,7 @@ return (
     </div>
 
     <div style={{ marginTop: 12 }}>
-        <form>Password</form>
+        <label htmlFor="password">Password</label>
         <input
           id="password"
           type="password"
