@@ -28,9 +28,9 @@ function normIngredientName(name: string) {
 }
 
 const assetIcon = (f: string) => `/assets/images-icons/${encodeURIComponent(f)}`;
-const ICON_PREP = assetIcon("PrepTime.svg");
-const ICON_COOK = assetIcon("CookingTime.svg");
-const ICON_COST = assetIcon("Budget.svg");
+const ICON_PREP = assetIcon("PrepTime.png");
+const ICON_COOK = assetIcon("CookingTime.png");
+const ICON_COST = assetIcon("Budget.png");
 
 async function getIngredientIndex(): Promise<IngredientIndex> {
   if (ingredientIndexPromise) return ingredientIndexPromise;
@@ -239,13 +239,10 @@ export default function RecipeCard(props: RecipeCardProps) {
     <Link to={href} className="recipe-card recipe-card--link" aria-label={`Open ${title}`}>
       {img ? (
         <div className="recipe-card__media">
-          <span className="recipe-card__currency">COP</span>
           <img src={img} alt={title} className="recipe-card__img" />
         </div>
       ) : (
-        <div className="recipe-card__media">
-          <span className="recipe-card__currency">COP</span>
-        </div>
+        <div className="recipe-card__media" />
       )}
       <div className="recipe-card__body">
         <h3 className="recipe-card__title">{title}</h3>

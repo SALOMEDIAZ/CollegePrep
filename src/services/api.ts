@@ -81,3 +81,15 @@ export async function searchMealsByName(query: string): Promise<MealDbMeal[]> {
 
   return meals;
 }
+
+export async function getRandomMeal(): Promise<MealDbMeal | null> {
+  const data = await mealDbGet<MealDbSearchResponse>("/random.php", {});
+  return data.meals?.[0] ?? null;
+}
+
+export async function searchMealsByFirstLetter(letter: string): Promise<MealDbMeal[]> {
+  const l = (letter || "").trim().slice(0, 1).toLowerCase();
+  if (!/^[a-z]$/.test(l)) return [];
+  const data = await mealDbGet<MealDbSearchResponse>("/search.php", { f: l });
+  return data.meals ?? [];
+}
