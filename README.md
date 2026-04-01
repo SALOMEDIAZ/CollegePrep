@@ -1,7 +1,7 @@
 # CollegePrep
 CollegePrep simplifies student life by automating meal planning and budget tracking. Built with React, Redux, and Firebase, it syncs grocery lists and costs in real-time. It is a Pixel Perfect, accessible tool designed to help you eat healthy without overspending time.
 
-This document establishes the technical standards and collaborative workflow for the MealPrep Joven project. All developers are required to follow these guidelines to ensure Clean Code, Pixel Perfect design, and consistent contributions.
+This document establishes the technical standards and collaborative workflow for the CollegePrep project. All developers are required to follow these guidelines to ensure Clean Code, Pixel Perfect design, and consistent contributions.
 
 **1. Technologies and Stack**
 
@@ -43,11 +43,8 @@ We follow a Feature Branch Workflow to maintain a stable main branch:
 
 • develop: Main integration branch for the team.
 
-• feat/feature-name: Dedicated branches for new features (e.g., feat/budget-logic).
-
 • fix/bug-name: Dedicated branches for bug fixes.
 
-Workflow: All features must be merged into develop via Pull Request before moving to main.
 
 **4. Commits Convention**
 
