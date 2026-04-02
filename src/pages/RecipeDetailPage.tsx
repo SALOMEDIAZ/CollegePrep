@@ -389,6 +389,13 @@ const RecipeDetailPage = () => {
     <div className="recipes-page recipe-detail-page">
       <div className="recipes-wrap recipe-detail-wrap">
         <div className="recipe-detail-top">
+          <div className="recipe-detail-mobileHeader">
+            <button type="button" className="recipe-detail-mobileBack" onClick={onBack} aria-label="Back">
+              <span aria-hidden="true">‹</span>
+            </button>
+            <div className="recipe-detail-mobileTitle">{title}</div>
+            <div />
+          </div>
           <button type="button" className="recipe-detail-back" onClick={onBack} aria-label="Back">
             <span aria-hidden="true">‹</span>
           </button>
@@ -407,21 +414,23 @@ const RecipeDetailPage = () => {
               </h1>
 
               <div className="recipe-detail-meta">
-                <div className="recipe-card__metaRow">
-                  <span className="recipe-pill">
-                    <img className="recipe-pill__icon" src={ICON_PREP} alt="" aria-hidden="true" />
-                    {prepLabel}
-                  </span>
-                  <span className="recipe-pill">
-                    <img className="recipe-pill__icon" src={ICON_COOK} alt="" aria-hidden="true" />
-                    {cookLabel}
-                  </span>
-                </div>
-                <div className="recipe-card__metaRow">
-                  <span className="recipe-pill recipe-pill--cost">
-                    <img className="recipe-pill__icon" src={ICON_COST} alt="" aria-hidden="true" />
-                    Total cost: {fmtCop(totalCost)}
-                  </span>
+                <div className="recipe-detail-metaGrid">
+                  <div className="recipe-card__metaRow">
+                    <span className="recipe-pill">
+                      <img className="recipe-pill__icon" src={ICON_PREP} alt="" aria-hidden="true" />
+                      {prepLabel}
+                    </span>
+                    <span className="recipe-pill">
+                      <img className="recipe-pill__icon" src={ICON_COOK} alt="" aria-hidden="true" />
+                      {cookLabel}
+                    </span>
+                  </div>
+                  <div className="recipe-card__metaRow">
+                    <span className="recipe-pill recipe-pill--cost">
+                      <img className="recipe-pill__icon" src={ICON_COST} alt="" aria-hidden="true" />
+                      Total cost: {fmtCop(totalCost)}
+                    </span>
+                  </div>
                 </div>
                 <div className="recipe-detail-actions">
                   <button
@@ -431,6 +440,7 @@ const RecipeDetailPage = () => {
                     aria-pressed={isSaved}
                     disabled={saving}
                     onClick={onToggleSaveRecipe}
+                    data-label="Save"
                   >
                     <svg viewBox="0 0 24 24" width="36" height="36" aria-hidden="true">
                       <path
@@ -439,7 +449,7 @@ const RecipeDetailPage = () => {
                       />
                     </svg>
                   </button>
-                  <button type="button" className="recipe-detail-actionBtn" aria-label="Add to meal plan">
+                  <button type="button" className="recipe-detail-actionBtn" aria-label="Add to meal plan" data-label="Add">
                     <svg viewBox="0 0 24 24" width="36" height="36" aria-hidden="true">
                       <path
                         fill="currentColor"

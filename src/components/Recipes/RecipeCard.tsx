@@ -240,19 +240,32 @@ export default function RecipeCard(props: RecipeCardProps) {
       {img ? (
         <div className="recipe-card__media">
           <img src={img} alt={title} className="recipe-card__img" />
+          <div className="recipe-card__mediaPillRow" aria-hidden="true">
+            <span className="recipe-pill recipe-pill--cook">
+              <img className="recipe-pill__icon" src={ICON_COOK} alt="" aria-hidden="true" />
+              {cookLabel}
+            </span>
+          </div>
         </div>
       ) : (
-        <div className="recipe-card__media" />
+        <div className="recipe-card__media">
+          <div className="recipe-card__mediaPillRow" aria-hidden="true">
+            <span className="recipe-pill recipe-pill--cook">
+              <img className="recipe-pill__icon" src={ICON_COOK} alt="" aria-hidden="true" />
+              {cookLabel}
+            </span>
+          </div>
+        </div>
       )}
       <div className="recipe-card__body">
         <h3 className="recipe-card__title">{title}</h3>
         <div className="recipe-card__meta">
           <div className="recipe-card__metaRow">
-            <span className="recipe-pill">
+            <span className="recipe-pill recipe-pill--prep">
               <img className="recipe-pill__icon" src={ICON_PREP} alt="" aria-hidden="true" />
               {prepLabel}
             </span>
-            <span className="recipe-pill">
+            <span className="recipe-pill recipe-pill--cook recipe-pill--cookInline">
               <img className="recipe-pill__icon" src={ICON_COOK} alt="" aria-hidden="true" />
               {cookLabel}
             </span>

@@ -14,7 +14,8 @@
   box-shadow: 0 10px 30px rgba(10, 10, 10, 0.06);
   display: flex;
   flex-direction: column;
-  width: 366px;
+  width: 100%;
+  max-width: 366px;
 }
 
 .recipe-card--link {
@@ -31,6 +32,14 @@
   height: 260px;
   background: #f3f4f6;
   position: relative;
+}
+
+.recipe-card__mediaPillRow {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  display: none;
+  z-index: 2;
 }
 
 .recipe-card__img {
@@ -114,4 +123,51 @@
 .recipe-pill--cost {
   color: #2a3a10;
   font-weight: 400;
+}
+
+@media (max-width: 640px) {
+  .recipe-card__mediaPillRow {
+    display: block;
+  }
+
+  .recipe-pill--prep,
+  .recipe-pill--cookInline {
+    display: none;
+  }
+
+  .recipe-card__media {
+    height: 140px;
+  }
+
+  .recipe-card__body {
+    padding: 10px 10px 12px;
+    gap: 8px;
+  }
+
+  .recipe-card__title {
+    font-size: 16px;
+  }
+
+  .recipe-card__desc {
+    display: none;
+  }
+
+  .recipe-card__metaRow {
+    flex-wrap: wrap;
+  }
+
+  .recipe-card__metaRow .recipe-pill {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  .recipe-pill {
+    padding: 5px 10px;
+    font-size: 11px;
+    max-height: 38px;
+  }
+
+  .recipe-pill--cost {
+    border-radius: 999px;
+  }
 }
