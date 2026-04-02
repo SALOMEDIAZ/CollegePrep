@@ -6,7 +6,6 @@ import MealPlan, { type MealPlanDay, type MealPlanMeal, type MealPlanViewModel, 
 import {
   ensureProfileRow,
   fetchAllergyKeywords,
-  fetchDietaryKeywords,
   fetchSessionUser,
   type ProfileRow,
 } from "../services/profileSupabase";
@@ -188,41 +187,38 @@ function dietKeysFromProfile(profile: ProfileRow | null) {
   const keys: string[] = [];
   if (profile.vegan) keys.push("vegan");
   else if (profile.vegetarian) keys.push("vegetarian");
-  if (profile.gluten_free) keys.push("gluten_free");
-  if (profile.lactose_free) keys.push("lactose_free");
+  if (profile.gluten_free) keys.push("gluten_free", "gluten");
+  if (profile.lactose_free) keys.push("lactose_free", "lactose");
   return keys;
+}
+
+function fallbackDietKeywords(dietKeys: string[]) {
+  const wantsVeg = dietKeys.includes("vegan") || dietKeys.includes("vegetarian");
+  if (!wantsVeg) return [];
+  const baseNoMeat = ["meat", "beef", "pork", "chicken", "turkey", "lamb", "fish", "seafood", "shrimp"];
+  const veganExtras = ["egg", "milk", "cheese", "butter", "cream", "yogurt", "honey"];
+  return dietKeys.includes("vegan") ? baseNoMeat.concat(veganExtras) : baseNoMeat;
 }
 
 async function buildRestrictionKeywordSets(profile: ProfileRow | null) {
   if (!profile) return { allergyAvoid: new Set<string>(), dietAvoid: new Set<string>() };
   const allergyValues = (Array.isArray(profile.allergies) ? profile.allergies : []).map((x) => String(x ?? ""));
   const dietKeys = dietKeysFromProfile(profile);
-  const [allergyKeywords, dietKeywords] = await Promise.all([
-    fetchAllergyKeywords(allergyValues),
-    fetchDietaryKeywords(dietKeys),
-  ]);
+  const restrictionValues = allergyValues.concat(dietKeys);
+  const allergyKeywords = await fetchAllergyKeywords(restrictionValues);
+  const combined = allergyKeywords.concat(fallbackDietKeywords(dietKeys));
 
   const allergyAvoid = new Set<string>();
-  for (const v of allergyValues) {
+  for (const v of restrictionValues) {
     const n = norm(String(v));
     if (n) allergyAvoid.add(n);
   }
-  for (const kw of allergyKeywords) {
+  for (const kw of combined) {
     const n = norm(String(kw));
     if (n) allergyAvoid.add(n);
   }
 
-  const dietAvoid = new Set<string>();
-  for (const k of dietKeys) {
-    const n = norm(String(k));
-    if (n) dietAvoid.add(n);
-  }
-  for (const kw of dietKeywords) {
-    const n = norm(String(kw));
-    if (n) dietAvoid.add(n);
-  }
-
-  return { allergyAvoid, dietAvoid };
+  return { allergyAvoid, dietAvoid: new Set<string>() };
 }
 
 function matchesAnyKeyword(text: string, keywords: Set<string>) {

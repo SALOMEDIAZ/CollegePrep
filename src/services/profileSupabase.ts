@@ -37,10 +37,6 @@ type AllergyKeywordRow = {
   keyword: string | null;
 };
 
-type DietaryKeywordRow = {
-  keyword: string | null;
-};
-
 let allergyIndexPromise: Promise<Map<string, string>> | null = null;
 
 function normKey(s: string) {
@@ -91,33 +87,6 @@ export async function fetchAllergyKeywords(allergyKeysOrNames: string[]) {
   if (error) throw error;
   const rows = (data ?? []) as Array<Pick<AllergyKeywordRow, "keyword">>;
   return rows.map((r) => String(r.keyword ?? "").trim()).filter(Boolean);
-}
-
-export async function fetchDietaryKeywords(dietKeys: string[]) {
-  const keys = (Array.isArray(dietKeys) ? dietKeys : []).map((s) => String(s ?? "").trim()).filter(Boolean);
-  if (!keys.length) return [];
-
-  const attempt = async (col: "dietary_key" | "diet_key") => {
-    const { data, error } = await supabase.from("dietary_keywords").select(`keyword,${col}`).in(col, keys);
-    if (error) return { data: null as null | unknown[], error };
-    return { data, error: null as null };
-  };
-
-  const a = await attempt("dietary_key");
-  if (!a.error) {
-    const rows = (a.data ?? []) as Array<DietaryKeywordRow>;
-    return rows.map((r) => String(r.keyword ?? "").trim()).filter(Boolean);
-  }
-
-  const msg = String((a.error as { message?: unknown })?.message ?? "");
-  if (msg.toLowerCase().includes("dietary_key")) {
-    const b = await attempt("diet_key");
-    if (b.error) throw b.error;
-    const rows = (b.data ?? []) as Array<DietaryKeywordRow>;
-    return rows.map((r) => String(r.keyword ?? "").trim()).filter(Boolean);
-  }
-
-  throw a.error;
 }
 
 export async function fetchSessionUser() {
