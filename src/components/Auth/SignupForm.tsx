@@ -1,29 +1,24 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import supabase, { isSupabaseConfigured } from "../../services/supabaseClient";
+import supabase from "../../services/supabaseClient";
 
 const SignupForm = () => {
-    const navigate = useNavigate();
-    const [fullName, setFullName] = useState("");
-    const [university, setUniversity] = useState("");
-    const [career, setCareer] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
+const navigate = useNavigate();
+  const [fullName, setFullName] = useState("");
+  const [university, setUniversity] = useState("");
+  const [career, setCareer] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setSuccess("");
-
-    if (!isSupabaseConfigured) {
-    setError("Missing Supabase config. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart the dev server.");
-    return;
-    }
 
     if (!fullName || !email || !password || !confirmPassword) {
     setError("Please fill in all required fields.");
@@ -78,7 +73,7 @@ const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 };
 
 return (
-    <form onSubmit={onSubmit} style={{ maxWidth: 480, margin: "0 auto" }}>
+    <form onSubmit={onSubmit} className="auth-form">
     <div>
         <label htmlFor="fullName">Full Name</label>
         <input
@@ -89,7 +84,7 @@ return (
         />
     </div>
 
-    <div style={{ marginTop: 12 }}>
+    <div>
         <label htmlFor="university">University</label>
         <input
         id="university"
@@ -98,7 +93,7 @@ return (
         />
     </div>
 
-    <div style={{ marginTop: 12 }}>
+    <div>
         <label htmlFor="career">Career</label>
         <input
         id="career"
@@ -107,7 +102,7 @@ return (
         />
     </div>
 
-    <div style={{ marginTop: 12 }}>
+    <div>
         <label htmlFor="email">Email</label>
         <input
         id="email"
@@ -118,7 +113,7 @@ return (
         />
     </div>
 
-    <div style={{ marginTop: 12 }}>
+    <div>
         <label htmlFor="password">Password</label>
         <input
         id="password"
@@ -130,7 +125,7 @@ return (
         />
     </div>
 
-    <div style={{ marginTop: 12 }}>
+    <div>
         <label htmlFor="confirmPassword">Confirm Password</label>
         <input
         id="confirmPassword"
@@ -142,20 +137,23 @@ return (
     </div>
 
     {error && (
-        <div style={{ color: "crimson", marginTop: 12 }} role="alert">
+        <div  className="auth-message auth-message--error" role="alert">
         {error}
         </div>
     )}
 
     {success && (
-        <div style={{ color: "green", marginTop: 12 }} role="status">
+        <div className="auth-message auth-message--success" role="status">
         {success}
         </div>
     )}
 
-    <button type="submit" disabled={loading} style={{ marginTop: 20 }}>
-        {loading ? "Cargando..." : "Crear cuenta"}
+    <button type="submit" disabled={loading} className="auth-submit">
+        {loading ? "Loading..." : "Create Account"}
     </button>
+    <div className="auth-link">
+        <span>Already have an account?</span> <a href="/login">Log In</a>
+    </div>
     </form>
 );
 };

@@ -1,12 +1,18 @@
 import SignupForm from "../components/Auth/SignupForm";
+import "../styles/Auth.css";
 
 const SignupPage = () => {
   return (
-    <main style={{ padding: "1.5rem" }}>
-      <h1>Crear cuenta</h1>
-      <SignupForm />
+    <main className="auth-page">
+      <div className="decor-logo" />
+      <div className="decor-bag-red" />
+      <div className="decor-bag-bottom" />
+      <section className="auth-box">
+        <h1>Create an account</h1>
+        <h3>Sign up to get started</h3>
+        <SignupForm />
+      </section>
     </main>
   );
 };
-
 export default SignupPage;

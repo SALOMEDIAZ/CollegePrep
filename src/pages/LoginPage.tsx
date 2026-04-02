@@ -1,10 +1,17 @@
 import LoginForm from "../components/Auth/LoginForm";
+import "../styles/Auth.css";
 
 const LoginPage = () => {
   return (
-    <main style={{ padding: "1.5rem" }}>
-      <h1>Iniciar sesión</h1>
-      <LoginForm />
+    <main className="auth-page">
+      <div className="decor-logo" />
+      <div className="decor-bag-red" />
+      <div className="decor-bag-bottom" />
+      <section className="auth-box">
+        <h1>Log In</h1>
+        <h3>Welcome back!</h3>
+        <LoginForm />
+      </section>
     </main>
   );
 };

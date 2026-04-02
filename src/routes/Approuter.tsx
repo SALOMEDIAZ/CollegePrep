@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import NavBar from "../components/Common/NavBar.tsx";
+import { NavBar } from "../components/Common/NavBar.tsx";
 import Login from "../pages/LoginPage.tsx";
 import Signup from "../pages/SignupPage.tsx";
 import Recipes from "../pages/RecipesPage.tsx";

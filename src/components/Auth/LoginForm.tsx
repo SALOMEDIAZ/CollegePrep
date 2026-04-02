@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import supabase, { isSupabaseConfigured } from "../../services/supabaseClient";
+import supabase from "../../services/supabaseClient";
 
 const LoginForm = () => {
     const navigate = useNavigate();
@@ -13,11 +13,6 @@ const LoginForm = () => {
 const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-
-    if (!isSupabaseConfigured) {
-    setError("Missing Supabase config. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart the dev server.");
-    return;
-    }
 
     if (!email || !password) {
     setError("Please enter your email and password.");
@@ -44,7 +39,7 @@ const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 };
 
 return (
-    <form onSubmit={onSubmit} style={{ maxWidth: 480, margin: "0 auto" }}>
+    <form onSubmit={onSubmit} className="auth-form">
     <div>
         <label htmlFor="email">Email</label>
         <input
@@ -57,7 +52,7 @@ return (
         />
     </div>
 
-    <div style={{ marginTop: 12 }}>
+        <div>
         <label htmlFor="password">Password</label>
         <input
           id="password"
@@ -71,14 +66,18 @@ return (
       </div>
 
       {error && (
-        <div style={{ color: "crimson", marginTop: 12 }} role="alert">
+        <div className="auth-message auth-message--error" role="alert">
           {error}
         </div>
       )}
 
-      <button type="submit" disabled={loading} style={{ marginTop: 20 }}>
+      <button type="submit" disabled={loading} className="auth-submit">
         {loading ? "Loading..." : "Log in"}
       </button>
+        <div className="auth-link">
+        <span>Don't have an account?</span>{" "}
+        <a href="/register">Create an account</a>
+      </div>
     </form>
   );
 };
