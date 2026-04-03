@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.profile-page-bg {
+  min-height: 100vh;
+  background-color: #faf9f6;
+  background-image: url("/assets/main/rectangel 78.png");
+  background-repeat: repeat;
+  background-size: 300px auto;
+  background-position: top left;
+}
+
+@layer components {
+  .profile-loading {
+    @apply flex min-h-screen items-center justify-center text-[#2d2d2d];
+  }
+
+  .profile-sr-only {
+    @apply sr-only;
+  }
+
+  .profile-root-text {
+    @apply text-[#2d2d2d];
+  }
+
+  .profile-top {
+    @apply navbar mx-auto max-w-7xl flex-wrap gap-4 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm lg:px-8;
+  }
+
+  .profile-top-left {
+    @apply flex flex-1 items-center gap-8;
+  }
+
+  .profile-brand {
+    @apply text-xl font-bold;
+  }
+
+  .profile-brand-green {
+    @apply text-[#3d7c1f];
+  }
+
+  .profile-brand-orange {
+    @apply text-[#e85d04];
+  }
+
+  .profile-nav-row {
+    @apply hidden gap-6 md:flex;
+  }
+
+  .profile-nav-a {
+    @apply text-sm font-medium hover:text-[#6b9e2a];
+  }
+
+  .profile-top-right {
+    @apply flex flex-1 items-center justify-end gap-3 md:flex-none;
+  }
+
+  .profile-search {
+    @apply input input-bordered input-sm flex max-w-xs flex-1 items-center gap-2 bg-white md:flex-none;
+  }
+
+  .profile-search-input {
+    @apply grow;
+  }
+
+  .profile-icon-link {
+    @apply btn btn-circle btn-ghost btn-sm border border-[#A6CE39]/50;
+  }
+
+  .profile-nav-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    background-color: currentColor;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E");
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  .profile-main {
+    @apply relative mx-auto max-w-4xl px-4 pb-16 lg:px-8;
+  }
+
+  .profile-cover {
+    @apply h-48 w-full rounded-b-3xl bg-cover bg-center sm:h-56 md:h-64;
+    background-image: url("https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80");
+  }
+
+  .profile-avatar-wrap {
+    @apply relative z-30 -mt-16 flex justify-center;
+  }
+
+  .profile-avatar {
+    @apply h-32 w-32 rounded-full border-4 border-white object-cover shadow-lg ring-4 ring-[#A6CE39]/40 sm:h-36 sm:w-36;
+  }
+
+  .profile-info {
+    @apply relative z-10 -mt-12 rounded-3xl border-2 border-[#A6CE39] bg-white/95 px-8 pb-10 pt-16 shadow-lg backdrop-blur-sm md:px-10;
+  }
+
+  .profile-settings-link {
+    @apply absolute right-4 top-4 z-20 flex items-center justify-center rounded-md p-0.5 transition-opacity hover:opacity-80 md:right-6 md:top-5;
+  }
+
+  .profile-settings-img {
+    display: block;
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+  }
+
+  .profile-name {
+    @apply text-center text-xl font-bold md:text-2xl;
+  }
+
+  .profile-line {
+    @apply mx-auto mt-2 h-1 w-24 rounded-full bg-[#A6CE39];
+  }
+
+  .profile-fields {
+    @apply mt-8 grid gap-4 text-sm md:grid-cols-3 md:text-base;
+  }
+
+  .profile-field {
+    @apply text-center md:text-left;
+  }
+
+  .profile-field-label {
+    @apply font-semibold text-[#666];
+  }
+
+  .profile-field-value {
+    @apply mt-1;
+  }
+
+  .profile-field-value-email {
+    @apply mt-1 break-all;
+  }
+
+  .profile-columns {
+    @apply mt-10 grid gap-8 lg:grid-cols-2;
+  }
+
+  .profile-card {
+    @apply card rounded-3xl border-2 border-[#A6CE39] bg-white/95 p-6 shadow-md md:p-8;
+  }
+
+  .profile-card-h {
+    @apply card-title mb-4 text-lg font-bold;
+  }
+
+  .profile-card-h-budget {
+    @apply card-title mb-2 text-lg font-bold;
+  }
+
+  .profile-budget-note {
+    @apply mb-4 text-center text-xs text-[#888];
+  }
+
+  .profile-about-list {
+    @apply space-y-3 text-[#444];
+  }
+
+  .profile-about-strong {
+    @apply font-semibold;
+  }
+
+  .profile-about-value {
+    @apply ml-2;
+  }
+
+  .profile-budget-inner {
+    @apply flex flex-col items-center gap-4;
+  }
+
+  .profile-budget-ring {
+    @apply radial-progress border-4 border-[#A6CE39] bg-[#f5fce8] text-xl font-bold text-[#3d7c1f];
+    --size: 10rem;
+    --thickness: 10px;
+  }
+
+}
