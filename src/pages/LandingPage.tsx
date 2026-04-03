@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 import "../styles/landing.css";
 
 const asset = (f: string) => `/assets/main/${encodeURIComponent(f)}`;
-const HERO =
-  "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=80";
+const LANDING_HERO = `/assets/images-icons/${encodeURIComponent("image 20.png")}`;
 
 export default function Landing() {
   return (
@@ -49,7 +48,7 @@ export default function Landing() {
           </div>
           <div className="landing-hero-img-wrap">
             <img
-              src={HERO}
+              src={LANDING_HERO}
               alt="Fresh vegetables and healthy ingredients on a plate"
               className="landing-hero-img"
             />

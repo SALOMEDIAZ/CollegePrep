@@ -104,6 +104,17 @@
     @apply relative z-10 -mt-12 rounded-3xl border-2 border-[#A6CE39] bg-white/95 px-8 pb-10 pt-16 shadow-lg backdrop-blur-sm md:px-10;
   }
 
+  .profile-settings-link {
+    @apply absolute right-4 top-4 z-20 flex items-center justify-center rounded-md p-0.5 transition-opacity hover:opacity-80 md:right-6 md:top-5;
+  }
+
+  .profile-settings-img {
+    display: block;
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+  }
+
   .profile-name {
     @apply text-center text-xl font-bold md:text-2xl;
   }
@@ -145,7 +156,11 @@
   }
 
   .profile-card-h-budget {
-    @apply card-title mb-6 text-lg font-bold;
+    @apply card-title mb-2 text-lg font-bold;
+  }
+
+  .profile-budget-note {
+    @apply mb-4 text-center text-xs text-[#888];
   }
 
   .profile-about-list {
@@ -161,7 +176,7 @@
   }
 
   .profile-budget-inner {
-    @apply flex flex-col items-center gap-6;
+    @apply flex flex-col items-center gap-4;
   }
 
   .profile-budget-ring {
@@ -170,15 +185,4 @@
     --thickness: 10px;
   }
 
-  .profile-budget-range {
-    @apply range range-sm range-success w-full max-w-xs;
-  }
-
-  .profile-edit-link-wrap {
-    @apply mt-10 text-center;
-  }
-
-  .profile-edit-link {
-    @apply link font-medium text-[#3d7c1f];
-  }
 }

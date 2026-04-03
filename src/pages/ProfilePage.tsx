@@ -1,16 +1,16 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, type CSSProperties } from "react";
 import "../styles/profile.css";
-import { ensureProfileRow, fetchSessionUser, upsertProfile, type ProfileRow } from "../services/profileSupabase";
+import { ensureProfileRow, fetchSessionUser, fetchWeeklyBudgetUsedPercent, type ProfileRow } from "../services/profileSupabase";
 import type { User } from "@supabase/supabase-js";
 
-const DEF_AVATAR =
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80";
+const DEF_AVATAR = `/assets/images-icons/${encodeURIComponent("usuario 1.png")}`;
+const SETTINGS_ICON_SRC = "/assets/images-icons/settings.png";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
-  const [budget, setBudget] = useState(75);
+  const [weeklyUsedPct, setWeeklyUsedPct] = useState(0);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -25,30 +25,43 @@ export default function ProfilePage() {
         return;
       }
       setProfile(p);
-      if (typeof p?.budget_percent === "number") {
-        setBudget(p.budget_percent);
-      }
+      const usedPct = await fetchWeeklyBudgetUsedPercent(u.id);
+      setWeeklyUsedPct(usedPct);
       setReady(true);
     }
     load();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const uid = user.id;
+    function refreshWeekly() {
+      void fetchWeeklyBudgetUsedPercent(uid).then(setWeeklyUsedPct);
+    }
+    function onVisible() {
+      if (document.visibilityState === "visible") refreshWeekly();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [user]);
 
   const avatar = profile?.avatar_url || DEF_AVATAR;
   const name = profile?.full_name?.trim() || "—";
   const email = user?.email || "—";
   const loc = profile?.location?.trim() || "—";
 
-  async function handleBudgetChange(newValue: number) {
-    if (!user) return;
-    setBudget(newValue);
-    await upsertProfile(user.id, { budget_percent: newValue });
-    setProfile((prev) => {
-      if (prev) {
-        return { ...prev, budget_percent: newValue };
-      }
-      return prev;
-    });
-  }
+  const allergyLine =
+    profile && Array.isArray(profile.allergies) && profile.allergies.length
+      ? profile.allergies.map((a) => String(a).trim()).filter(Boolean).join(", ")
+      : "—";
+
+  const preferenceParts: string[] = [];
+  if (profile?.vegetarian) preferenceParts.push("Vegetarian");
+  if (profile?.vegan) preferenceParts.push("Vegan");
+  if (profile?.gluten_free) preferenceParts.push("Gluten free");
+  if (profile?.lactose_free) preferenceParts.push("Lactose free");
+  if (profile?.omnivorous) preferenceParts.push("Omnivorous");
+  const preferenceLine = preferenceParts.length ? preferenceParts.join(", ") : "—";
 
   if (!ready) {
     return (
@@ -70,9 +83,9 @@ export default function ProfilePage() {
             <Link to="/recipes" className="profile-nav-a">
               Recipes
             </Link>
-            <a href="#" className="profile-nav-a">
+            <Link to="/mealplan" className="profile-nav-a">
               Meal plan
-            </a>
+            </Link>
           </nav>
         </div>
         <div className="profile-top-right">
@@ -92,6 +105,9 @@ export default function ProfilePage() {
           <img src={avatar} alt="Profile" className="profile-avatar" />
         </div>
         <section className="profile-info" aria-labelledby="profile-username">
+          <Link to="/settings" className="profile-settings-link" aria-label="Edit profile and settings">
+            <img src={SETTINGS_ICON_SRC} alt="" width={32} height={32} className="profile-settings-img" />
+          </Link>
           <h1 id="profile-username" className="profile-name">
             @{String(profile?.username ?? "user").replace(/^@/, "")}
           </h1>
@@ -124,40 +140,31 @@ export default function ProfilePage() {
               <li>
                 <span className="profile-about-strong">Career</span> <span className="profile-about-value">{profile?.career?.trim() || "—"}</span>
               </li>
+              <li>
+                <span className="profile-about-strong">Allergies</span> <span className="profile-about-value">{allergyLine}</span>
+              </li>
+              <li>
+                <span className="profile-about-strong">Preferences</span> <span className="profile-about-value">{preferenceLine}</span>
+              </li>
             </ul>
           </article>
           <article className="profile-card">
             <h2 className="profile-card-h-budget">Your budget</h2>
+            <p className="profile-budget-note">Weekly meal plan used</p>
             <div className="profile-budget-inner">
               <div
                 className="profile-budget-ring"
-                style={{ "--value": budget } as CSSProperties}
+                style={{ "--value": weeklyUsedPct } as CSSProperties}
                 role="progressbar"
-                aria-valuenow={budget}
+                aria-valuenow={weeklyUsedPct}
                 aria-valuemin={0}
                 aria-valuemax={100}
               >
-                {budget}%
+                {weeklyUsedPct}%
               </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={budget}
-                onChange={(e) => {
-                  handleBudgetChange(Number(e.target.value));
-                }}
-                className="profile-budget-range"
-                aria-label="Budget percent"
-              />
             </div>
           </article>
         </div>
-        <p className="profile-edit-link-wrap">
-          <Link to="/settings" className="profile-edit-link">
-            Edit profile & settings
-          </Link>
-        </p>
       </main>
     </div>
   );

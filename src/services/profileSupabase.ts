@@ -139,3 +139,41 @@ export async function wipeAccountAndSignOut() {
   await supabase.auth.signOut();
   return {};
 }
+
+
+export async function fetchWeeklyBudgetUsedPercent(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("meal_plans")
+    .select("id,start_date,end_date")
+    .eq("user_id", userId)
+    .order("start_date", { ascending: true });
+  if (error || !data?.length) return 0;
+
+  const rows = data as { id: string; start_date: string; end_date: string }[];
+  const todayIso = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  })();
+
+  let idx = rows.findIndex((r) => r.end_date >= todayIso);
+  if (idx < 0) idx = rows.length - 1;
+  const row = rows[idx];
+  if (!row) return 0;
+
+  const key = `mealplan:${userId}:${row.id}`;
+  const raw = typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
+  if (!raw) return 0;
+
+  try {
+    const vm = JSON.parse(raw) as { budget?: number; used?: number };
+    const b = Number(vm.budget ?? 0);
+    const u = Number(vm.used ?? 0);
+    if (b <= 0) return 0;
+    return Math.min(100, Math.round((u / b) * 100));
+  } catch {
+    return 0;
+  }
+}
