@@ -1,1 +1,0 @@
-// El círculo de porcentaje de presupuesto
