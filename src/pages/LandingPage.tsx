@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import "../styles/landing.css";
 
 const asset = (f: string) => `/assets/main/${encodeURIComponent(f)}`;
-const LANDING_HERO = `/assets/images-icons/${encodeURIComponent("image 20.png")}`;
+const LANDING_HERO =
+  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80";
 
 export default function Landing() {
   return (

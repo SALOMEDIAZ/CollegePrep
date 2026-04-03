@@ -172,6 +172,13 @@ export default function SettingsPage() {
     await upsertProfile(user.id, { allergies: next });
   }
 
+  async function removeAllergy(tagToRemove: string) {
+    if (!user) return;
+    const next = tags.filter((t) => t !== tagToRemove);
+    setTags(next);
+    await upsertProfile(user.id, { allergies: next });
+  }
+
   async function signOut() {
     await logoutUser();
     nav("/login");
@@ -298,7 +305,15 @@ export default function SettingsPage() {
             <div className="settings-tags">
               {shownTags.map((tag, i) => (
                 <span key={tag + "-" + i} className="settings-tag">
-                  {tag}
+                  <span className="settings-tag-label">{tag}</span>
+                  <button
+                    type="button"
+                    className="settings-tag-remove"
+                    onClick={() => removeAllergy(tag)}
+                    aria-label={`Remove ${tag}`}
+                  >
+                    <img src="/assets/images-icons/x.png" alt="" className="settings-tag-x" width={18} height={18} />
+                  </button>
                 </span>
               ))}
             </div>

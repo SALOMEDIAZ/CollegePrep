@@ -84,10 +84,15 @@
 
   .landing-hero-img-wrap {
     @apply flex w-full flex-1 justify-center lg:justify-end;
+    background: transparent;
+    box-shadow: none;
   }
 
   .landing-hero-img {
-    @apply h-auto w-full max-w-xl rounded-3xl object-contain shadow-md lg:max-w-2xl;
+    @apply h-auto w-full max-w-lg rounded-3xl object-contain lg:max-w-xl;
+    background: transparent;
+    box-shadow: none;
+    filter: none;
   }
 
   .landing-section {

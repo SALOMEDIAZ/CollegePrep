@@ -176,7 +176,22 @@
   }
 
   .settings-tag {
-    @apply badge badge-lg border border-[#A6CE39] bg-[#f5fce8] px-3 py-3 font-normal;
+    @apply badge badge-lg inline-flex max-w-full items-center gap-1.5 border border-[#A6CE39] bg-[#f5fce8] py-2 pl-3 pr-2 font-normal;
+  }
+
+  .settings-tag-label {
+    @apply min-w-0 flex-1 break-words text-left;
+  }
+
+  .settings-tag-remove {
+    @apply flex shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0.5 leading-none opacity-90 hover:opacity-100;
+  }
+
+  .settings-tag-x {
+    display: block;
+    width: 1.125rem;
+    height: 1.125rem;
+    object-fit: contain;
   }
 
   .settings-add-btn {
