@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { NavBar } from "../components/Common/NavBar.tsx";
 import Login from "../pages/LoginPage.tsx";
 import Signup from "../pages/SignupPage.tsx";
 import Recipes from "../pages/RecipesPage.tsx";
@@ -12,12 +11,8 @@ import SettingsPage from "../pages/SettingsPage.tsx";
 import "./App.css";
 
 function AppRouter() {
-  const hiddenRoutes = ["/", "/landing", "/login", "/register"];
-  const hideGlobalNavBar = hiddenRoutes.includes(window.location.pathname);
-
   return (
     <>
-      {!hideGlobalNavBar && <NavBar />}
       <Routes>
         <Route path="/" element={<Navigate to="/landing" replace />} />
         <Route path="/landing" element={<Landing />} />
