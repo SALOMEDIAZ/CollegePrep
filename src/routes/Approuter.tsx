@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { NavBar } from "../components/Common/NavBar.tsx";
 import Login from "../pages/LoginPage.tsx";
 import Signup from "../pages/SignupPage.tsx";
@@ -12,9 +12,8 @@ import SettingsPage from "../pages/SettingsPage.tsx";
 import "./App.css";
 
 function AppRouter() {
-  const { pathname } = useLocation();
-  const hideGlobalNavBar =
-    pathname === "/" || pathname === "/landing" || pathname === "/profile" || pathname === "/settings";
+  const hiddenRoutes = ["/", "/landing", "/login", "/register"];
+  const hideGlobalNavBar = hiddenRoutes.includes(window.location.pathname);
 
   return (
     <>

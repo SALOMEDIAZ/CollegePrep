@@ -174,4 +174,33 @@
   .search-input {
     min-width: 180px;
   }
+  .nav-items-desktop {
+    display: none;
+  }
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+  }
+  .hamburger-line {
+    width: 25px;
+    height: 3px;
+    background: #1e4d28;
+    margin: 3px 0;
+    transition: 0.3s;
+  }
+  .mobile-menu {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-top: 1px solid #e6e6e6;
+    padding: 1rem;
+    gap: 1rem;
+  }
+  .mobile-menu .nav-item {
+    padding: 0.5rem 0;
+  }
 }

@@ -1,7 +1,12 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, type CSSProperties } from "react";
 import "../styles/profile.css";
-import { ensureProfileRow, fetchSessionUser, fetchWeeklyBudgetUsedPercent, type ProfileRow } from "../services/profileSupabase";
+import {
+  ensureProfileRow,
+  fetchSessionUser,
+  fetchWeeklyBudgetUsedPercent,
+  type ProfileRow,
+} from "../services/profileSupabase";
 import type { User } from "@supabase/supabase-js";
 
 const DEF_AVATAR = `/assets/images-icons/${encodeURIComponent("usuario 1.png")}`;
@@ -52,7 +57,10 @@ export default function ProfilePage() {
 
   const allergyLine =
     profile && Array.isArray(profile.allergies) && profile.allergies.length
-      ? profile.allergies.map((a) => String(a).trim()).filter(Boolean).join(", ")
+      ? profile.allergies
+          .map((a) => String(a).trim())
+          .filter(Boolean)
+          .join(", ")
       : "—";
 
   const preferenceParts: string[] = [];
@@ -61,7 +69,9 @@ export default function ProfilePage() {
   if (profile?.gluten_free) preferenceParts.push("Gluten free");
   if (profile?.lactose_free) preferenceParts.push("Lactose free");
   if (profile?.omnivorous) preferenceParts.push("Omnivorous");
-  const preferenceLine = preferenceParts.length ? preferenceParts.join(", ") : "—";
+  const preferenceLine = preferenceParts.length
+    ? preferenceParts.join(", ")
+    : "—";
 
   if (!ready) {
     return (
@@ -73,40 +83,24 @@ export default function ProfilePage() {
 
   return (
     <div className="profile-page-bg profile-root-text" data-theme="light">
-      <header className="profile-top">
-        <div className="profile-top-left">
-          <Link to="/landing" className="profile-brand">
-            <span className="profile-brand-green">College</span>
-            <span className="profile-brand-orange">Prep</span>
-          </Link>
-          <nav className="profile-nav-row" aria-label="Main">
-            <Link to="/recipes" className="profile-nav-a">
-              Recipes
-            </Link>
-            <Link to="/mealplan" className="profile-nav-a">
-              Meal plan
-            </Link>
-          </nav>
-        </div>
-        <div className="profile-top-right">
-          <label className="profile-search">
-            <span className="profile-sr-only">Search</span>
-            <input type="search" placeholder="Search" className="profile-search-input" aria-label="Search recipes" />
-          </label>
-          <Link to="/profile" className="profile-icon-link" aria-label="Profile">
-            <span className="profile-nav-icon" aria-hidden />
-          </Link>
-        </div>
-      </header>
-
       <main className="profile-main">
         <div className="profile-cover" role="img" aria-label="Cover" />
         <div className="profile-avatar-wrap">
           <img src={avatar} alt="Profile" className="profile-avatar" />
         </div>
         <section className="profile-info" aria-labelledby="profile-username">
-          <Link to="/settings" className="profile-settings-link" aria-label="Edit profile and settings">
-            <img src={SETTINGS_ICON_SRC} alt="" width={32} height={32} className="profile-settings-img" />
+          <Link
+            to="/settings"
+            className="profile-settings-link"
+            aria-label="Edit profile and settings"
+          >
+            <img
+              src={SETTINGS_ICON_SRC}
+              alt=""
+              width={32}
+              height={32}
+              className="profile-settings-img"
+            />
           </Link>
           <h1 id="profile-username" className="profile-name">
             @{String(profile?.username ?? "user").replace(/^@/, "")}
@@ -132,19 +126,30 @@ export default function ProfilePage() {
             <h2 className="profile-card-h">About me</h2>
             <ul className="profile-about-list">
               <li>
-                <span className="profile-about-strong">Age</span> <span className="profile-about-value">{profile?.age ?? "—"}</span>
+                <span className="profile-about-strong">Age</span>{" "}
+                <span className="profile-about-value">
+                  {profile?.age ?? "—"}
+                </span>
               </li>
               <li>
-                <span className="profile-about-strong">College</span> <span className="profile-about-value">{profile?.university?.trim() || "—"}</span>
+                <span className="profile-about-strong">College</span>{" "}
+                <span className="profile-about-value">
+                  {profile?.university?.trim() || "—"}
+                </span>
               </li>
               <li>
-                <span className="profile-about-strong">Career</span> <span className="profile-about-value">{profile?.career?.trim() || "—"}</span>
+                <span className="profile-about-strong">Career</span>{" "}
+                <span className="profile-about-value">
+                  {profile?.career?.trim() || "—"}
+                </span>
               </li>
               <li>
-                <span className="profile-about-strong">Allergies</span> <span className="profile-about-value">{allergyLine}</span>
+                <span className="profile-about-strong">Allergies</span>{" "}
+                <span className="profile-about-value">{allergyLine}</span>
               </li>
               <li>
-                <span className="profile-about-strong">Preferences</span> <span className="profile-about-value">{preferenceLine}</span>
+                <span className="profile-about-strong">Preferences</span>{" "}
+                <span className="profile-about-value">{preferenceLine}</span>
               </li>
             </ul>
           </article>
