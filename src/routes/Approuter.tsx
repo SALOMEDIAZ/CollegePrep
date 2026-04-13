@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "../pages/LoginPage.tsx";
 import Signup from "../pages/SignupPage.tsx";
 import Recipes from "../pages/RecipesPage.tsx";
@@ -12,7 +12,7 @@ import "./App.css";
 
 function AppRouter() {
   return (
-    <>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/landing" replace />} />
         <Route path="/landing" element={<Landing />} />
@@ -59,7 +59,7 @@ function AppRouter() {
           }
         />
       </Routes>
-    </>
+    </HashRouter>
   );
 }
 
