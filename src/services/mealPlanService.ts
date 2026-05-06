@@ -1,6 +1,6 @@
 import supabase from "./supabaseClient";
 import { searchMealsByFirstLetter, type MealDbMeal } from "./api";
-import { ensureProfileRow, fetchAllergyKeywords } from "./profileService";
+import { ensureProfileRow, fetchAllergyKeywords, resolveSupabaseProfileId } from "./profileService";
 import type { ProfileRow } from "../types/profile";
 import type {
   CreatePlanValues,
@@ -216,10 +216,12 @@ export function selectPlanForRange(userId: string, rows: MealPlanRow[], rangeSta
 }
 
 export async function fetchAllPlans(userId: string) {
+  const dbUserId = await resolveSupabaseProfileId(userId, false);
+  if (!dbUserId) return [];
   const { data, error } = await supabase
     .from("meal_plans")
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", dbUserId)
     .order("start_date", { ascending: true });
   if (error) throw error;
   return (data ?? []) as MealPlanRow[];
@@ -332,8 +334,8 @@ function sampleUnique<T>(items: T[], count: number) {
   return arr.slice(0, Math.min(count, arr.length));
 }
 
-async function fetchSavedRecipeIds(userId: string) {
-  const { data, error } = await supabase.from("saved_recipes").select("recipe_id").eq("user_id", userId);
+async function fetchSavedRecipeIds(dbUserId: string) {
+  const { data, error } = await supabase.from("saved_recipes").select("recipe_id").eq("user_id", dbUserId);
   if (error) throw error;
   const rows = (data ?? []) as Array<Pick<SavedRecipeRow, "recipe_id">>;
   return rows.map((r) => String(r.recipe_id)).filter(Boolean);
@@ -473,13 +475,17 @@ async function insertMealPlanDays(planId: string, values: CreatePlanValues, rang
 }
 
 export async function createWeekPlanAndLoad(userId: string, values: CreatePlanValues, existingPlans: MealPlanRow[], cursorWeekStartIso: string) {
-  const profile = await ensureProfileForUser(userId);
+  const dbUserId = await resolveSupabaseProfileId(userId, true);
+  if (!dbUserId) throw new Error("Could not resolve Supabase profile id.");
+  // ESTO GARANTIZA que exista el profile_id en profiles antes del insert a meal_plans
+  const profile = await ensureProfileForUser(dbUserId);
+  const profileId = profile.id;
   const cursorWeek = getWeekInfoFromStartIso(cursorWeekStartIso, new Date());
   const todayIso = toISODate(new Date());
   const planStartIso = todayIso >= cursorWeek.startIso && todayIso <= cursorWeek.endIso ? todayIso : cursorWeek.startIso;
 
   const planInsert = {
-    user_id: userId,
+    user_id: profileId,
     name: cursorWeek.title,
     start_date: planStartIso,
     end_date: cursorWeek.endIso,
@@ -497,7 +503,7 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
   const rangeStart = fromISODate(planStartIso);
   const rangeEnd = fromISODate(cursorWeek.endIso);
   await insertMealPlanDays(planId, values, rangeStart, rangeEnd);
-  const vm = await buildMealsForSlots(values, profile, userId, planTitleForRow(insertedRow), rangeStart, rangeEnd);
+  const vm = await buildMealsForSlots(values, profile, profileId, planTitleForRow(insertedRow), rangeStart, rangeEnd);
 
   safeSetLocalStorageItem(localPlanKey(userId, planId), JSON.stringify(vm));
   safeSetLocalStorageItem(localLastPlanKey(userId), planId);
@@ -508,9 +514,11 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
 }
 
 export async function deletePlanAndSelectNext(userId: string, planId: string, plans: MealPlanRow[], cursorStartIso: string, cursorEndIso: string) {
+  const dbUserId = await resolveSupabaseProfileId(userId, false);
+  if (!dbUserId) throw new Error("Could not resolve Supabase profile id.");
   const { error: daysErr } = await supabase.from("meal_plan_days").delete().eq("meal_plan_id", planId);
   if (daysErr) throw daysErr;
-  const { error: planErr } = await supabase.from("meal_plans").delete().eq("id", planId).eq("user_id", userId);
+  const { error: planErr } = await supabase.from("meal_plans").delete().eq("id", planId).eq("user_id", dbUserId);
   if (planErr) throw planErr;
 
   safeRemoveLocalStorageItem(localPlanKey(userId, planId));
@@ -528,6 +536,8 @@ export async function replaceMealInPlan(
   planRow: Pick<MealPlanRow, "only_saved_recipes" | "only_new_recipes">,
   target: { date: string; mealType: MealType; recipeId: string },
 ) {
+  const dbUserId = await resolveSupabaseProfileId(userId, false);
+  if (!dbUserId) throw new Error("Could not resolve Supabase profile id.");
   const dayIdx = plan.days.findIndex((d) => d.date === target.date);
   if (dayIdx < 0) throw new Error("Day not found in plan.");
   const day = plan.days[dayIdx];
@@ -541,7 +551,7 @@ export async function replaceMealInPlan(
   if (!(available > 0)) throw new Error("No remaining budget to replace this meal.");
 
   const profile = await ensureProfileForUser(userId);
-  const savedIdsArr = await fetchSavedRecipeIds(userId);
+  const savedIdsArr = await fetchSavedRecipeIds(dbUserId);
   const savedIds = new Set(savedIdsArr);
 
   const usedRecipes = new Set<string>();

@@ -19,6 +19,53 @@ type AllergyKeywordRow = {
 
 let allergyIndexPromise: Promise<Map<string, string>> | null = null;
 
+function isUuid(v: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
+function invalidSupabaseUserIdError() {
+  return new Error(
+    "Supabase expects UUID user ids in profiles.id, but Firebase returns non-UUID ids. Update your Supabase schema to support Firebase uid (text) or add a mapping table.",
+  );
+}
+
+function invalidProfileIdFromRpcError() {
+  return new Error("Could not resolve a valid profile id from Supabase RPC mapping.");
+}
+
+async function getProfileIdForFirebaseUid(firebaseUid: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("get_profile_id_for_firebase", { p_firebase_uid: firebaseUid });
+  if (error) throw error;
+  if (!data) return null;
+  const id = String(data);
+  return isUuid(id) ? id : null;
+}
+
+async function ensureProfileIdForFirebaseUid(firebaseUid: string): Promise<string> {
+  const { data, error } = await supabase.rpc("ensure_profile_for_firebase", { p_firebase_uid: firebaseUid });
+  if (error) {
+    const status = Number((error as { status?: unknown })?.status ?? 0);
+    const code = String((error as { code?: unknown })?.code ?? "");
+    // EN DEV HAY LLAMADAS DUPLICADAS; SI CHOCA POR CONFLICT, REINTENTA LECTURA
+    if (status === 409 || code === "23505") {
+      const existing = await getProfileIdForFirebaseUid(firebaseUid);
+      if (existing) return existing;
+    }
+    throw error;
+  }
+  const id = String(data ?? "");
+  if (!isUuid(id)) throw invalidProfileIdFromRpcError();
+  return id;
+}
+
+// ESTO CONVIERTE FIREBASE UID (TEXTO) A PROFILE ID (UUID) DE SUPABASE
+export async function resolveSupabaseProfileId(userId: string, createIfMissing = true): Promise<string | null> {
+  if (isUuid(userId)) return userId;
+  if (!userId.trim()) return null;
+  if (createIfMissing) return ensureProfileIdForFirebaseUid(userId);
+  return getProfileIdForFirebaseUid(userId);
+}
+
 function normKey(s: string) {
   return s
     .normalize("NFD")
@@ -70,16 +117,26 @@ export async function fetchAllergyKeywords(allergyKeysOrNames: string[]) {
 }
 
 export async function fetchProfileByUserId(userId: string) {
-  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+  const dbUserId = await resolveSupabaseProfileId(userId, false);
+  if (!dbUserId) return { profile: null as ProfileRow | null, error: invalidSupabaseUserIdError() };
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", dbUserId).maybeSingle();
   if (error) return { profile: null as ProfileRow | null, error };
   return { profile: data as ProfileRow | null, error: null as null };
 }
 
 export async function ensureProfileRow(userId: string) {
-  const { profile, error } = await fetchProfileByUserId(userId);
+  let dbUserId = userId;
+  try {
+    const resolved = await resolveSupabaseProfileId(userId, true);
+    if (!resolved) return { profile: null as ProfileRow | null, error: invalidSupabaseUserIdError() };
+    dbUserId = resolved;
+  } catch (error) {
+    return { profile: null as ProfileRow | null, error: error as Error };
+  }
+  const { profile, error } = await fetchProfileByUserId(dbUserId);
   if (error) return { profile: null as ProfileRow | null, error };
   if (profile) return { profile, error: null as null };
-  const { data, error: insErr } = await supabase.from("profiles").insert({ id: userId }).select("*").single();
+  const { data, error: insErr } = await supabase.from("profiles").insert({ id: dbUserId }).select("*").single();
   if (insErr) {
     const code = String((insErr as { code?: unknown })?.code ?? "");
     if (code === "23503") {
@@ -95,37 +152,49 @@ export async function ensureProfileRow(userId: string) {
 }
 
 export async function upsertProfile(userId: string, patch: ProfilePatch) {
-  const row = { id: userId, ...patch };
+  const dbUserId = await resolveSupabaseProfileId(userId, true);
+  if (!dbUserId) return { data: null, error: invalidSupabaseUserIdError() };
+  const row = { id: dbUserId, ...patch };
   return supabase.from("profiles").upsert(row, { onConflict: "id" });
 }
 
 export async function persistAvatar(file: File, userId: string) {
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${userId}/avatar.${ext}`;
+  const dbUserId = await resolveSupabaseProfileId(userId, true);
+  if (!dbUserId) return { error: invalidSupabaseUserIdError() };
+  // ESTO EVITA PROBLEMAS CON EXTENSIONES EN MAYUSCULA EN STORAGE
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${dbUserId}/avatar.${ext}`;
   const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
   if (upErr) return { error: upErr };
   const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  return upsertProfile(userId, { avatar_url: data.publicUrl });
+  return upsertProfile(dbUserId, { avatar_url: data.publicUrl });
 }
 
 export async function wipeAccountAndSignOut() {
   await auth.authStateReady();
   const user = auth.currentUser;
   if (!user) return { error: new Error("No session") };
-  const { data: files } = await supabase.storage.from("avatars").list(user.uid);
-  if (files?.length) {
-    await supabase.storage.from("avatars").remove(files.map((f) => `${user.uid}/${f.name}`));
+  const dbUserId = await resolveSupabaseProfileId(user.uid, false);
+  if (!dbUserId) {
+    await signOut(auth);
+    return {};
   }
-  await supabase.from("profiles").delete().eq("id", user.uid);
+  const { data: files } = await supabase.storage.from("avatars").list(dbUserId);
+  if (files?.length) {
+    await supabase.storage.from("avatars").remove(files.map((f) => `${dbUserId}/${f.name}`));
+  }
+  await supabase.from("profiles").delete().eq("id", dbUserId);
   await signOut(auth);
   return {};
 }
 
 export async function fetchWeeklyBudgetUsedPercent(userId: string): Promise<number> {
+  const dbUserId = await resolveSupabaseProfileId(userId, false);
+  if (!dbUserId) return 0;
   const { data, error } = await supabase
     .from("meal_plans")
     .select("id,start_date,end_date")
-    .eq("user_id", userId)
+    .eq("user_id", dbUserId)
     .order("start_date", { ascending: true });
   if (error || !data?.length) return 0;
 

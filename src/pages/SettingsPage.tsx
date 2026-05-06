@@ -149,7 +149,7 @@ export default function SettingsPage() {
       setSaving(false);
       setSaveNotice({
         kind: "err",
-        text: "Could not save your profile preferences. Check your Supabase keys in .env and try again.",
+        text: res.error.message || "Could not save your profile preferences.",
       });
       return;
     }
@@ -187,7 +187,7 @@ export default function SettingsPage() {
     if (!f || !user) return;
     const r = await persistAvatar(f, user.id);
     if (r.error) {
-      setSaveNotice({ kind: "err", text: "Could not update your photo. Check permissions and try again." });
+      setSaveNotice({ kind: "err", text: r.error.message || "Could not update your photo." });
     } else {
       const { profile: p } = await fetchProfileByUserId(user.id);
       if (p?.avatar_url) setPreview(p.avatar_url);
@@ -202,14 +202,20 @@ export default function SettingsPage() {
     setTags(next);
     setDraftAllergy("");
     dlgRef.current?.close();
-    await upsertProfile(user.id, { allergies: next });
+    const res = await upsertProfile(user.id, { allergies: next });
+    if (res.error) {
+      setSaveNotice({ kind: "err", text: res.error.message || "Could not save allergy changes." });
+    }
   }
 
   async function removeAllergy(tagToRemove: string) {
     if (!user) return;
     const next = tags.filter((t) => t !== tagToRemove);
     setTags(next);
-    await upsertProfile(user.id, { allergies: next });
+    const res = await upsertProfile(user.id, { allergies: next });
+    if (res.error) {
+      setSaveNotice({ kind: "err", text: res.error.message || "Could not save allergy changes." });
+    }
   }
 
   async function signOut() {
@@ -294,16 +300,13 @@ export default function SettingsPage() {
             </div>
             <div className="settings-fields">
               <label className="settings-field">
-                <span className="settings-field-label">Email (Firebase login)</span>
+                <span className="settings-field-label">Email</span>
                 <input
                   type="email"
                   className="settings-inp"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <span className="settings-field-note">
-                  Login email stays in Firebase. Diet, allergies, and school info stay in Supabase.
-                </span>
               </label>
               {textFields.map((f) => (
                 <label key={f.label} className="settings-field">
