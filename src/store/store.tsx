@@ -2,11 +2,13 @@ import { configureStore } from "@reduxjs/toolkit";
 import { useDispatch, useSelector } from "react-redux";
 import budgetReducer from "./slices/budgetSlice";
 import mealPlanReducer from "./slices/mealPlanSlice";
+import profileReducer from "./slices/profileSlice";
 
 export const store = configureStore({
   reducer: {
     budget: budgetReducer,
     mealPlan: mealPlanReducer,
+    profile: profileReducer,
   },
 });
 

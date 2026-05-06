@@ -1,17 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import "../styles/settings.css";
-import supabase from "../services/supabaseClient";
 import {
   ensureProfileRow,
   fetchProfileByUserId,
-  fetchSessionUser,
-  logoutUser,
   persistAvatar,
   upsertProfile,
   wipeAccountAndSignOut,
-} from "../services/profileSupabase";
-import type { User } from "@supabase/supabase-js";
+} from "../services/profileService";
+import { firebaseUserToAppUser, logoutUser, updateUserEmail } from "../services/authService";
+import { auth } from "../services/firebase";
+import { useAppDispatch, useAppSelector } from "../store/store";
+import { clearUser, setUser } from "../store/slices/profileSlice";
+import type { AppUser } from "../types/user";
 
 const DEF_AVATAR = `/assets/images-icons/${encodeURIComponent("usuario 1.png")}`;
 const defaultTags = ["Peanut", "Mushrooms", "Milk"];
@@ -31,10 +32,12 @@ const NOTIF_ROWS = [
 ];
 
 export default function SettingsPage() {
+  const dispatch = useAppDispatch();
+  const reduxUser = useAppSelector((s) => s.profile.user);
   const nav = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const dlgRef = useRef<HTMLDialogElement>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserLocal] = useState<AppUser | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -62,12 +65,15 @@ export default function SettingsPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (!reduxUser) return;
+    setUserLocal(reduxUser);
+    setEmail(reduxUser.email || "");
+  }, [reduxUser]);
+
+  useEffect(() => {
     async function load() {
-      const u = await fetchSessionUser();
-      if (!u) return;
-      setUser(u);
-      setEmail(u.email || "");
-      const { profile: p, error } = await ensureProfileRow(u.id);
+      if (!reduxUser) return;
+      const { profile: p, error } = await ensureProfileRow(reduxUser.id);
       if (error || !p) {
         console.error(error);
         setReady(true);
@@ -96,7 +102,7 @@ export default function SettingsPage() {
       setReady(true);
     }
     load();
-  }, []);
+  }, [reduxUser]);
 
   const avatarSrc = preview || DEF_AVATAR;
   const shownTags = tags.filter((t) => t.toLowerCase().includes(tagFilter.trim().toLowerCase()));
@@ -133,14 +139,23 @@ export default function SettingsPage() {
       notif_budget: notif.b,
       notif_recipe: notif.r,
     });
-    if (email.trim() && email !== user.email) {
-      const e = await supabase.auth.updateUser({ email: email.trim() });
-      if (e.error) {
+
+    // ACTUALIZAR EMAIL EN FIREBASE
+    if (email.trim() && email.trim() !== user.email) {
+      const eRes = await updateUserEmail(email.trim());
+      if (eRes.error) {
         setSaving(false);
-        alert(e.error.message);
+        alert(eRes.error.message);
         return;
       }
+      await auth.currentUser?.reload();
+      const refreshed = auth.currentUser;
+      if (refreshed) {
+        dispatch(setUser(firebaseUserToAppUser(refreshed)));
+        setUserLocal(firebaseUserToAppUser(refreshed));
+      }
     }
+
     setSaving(false);
     if (res.error) alert(res.error.message);
   }
@@ -181,6 +196,7 @@ export default function SettingsPage() {
 
   async function signOut() {
     await logoutUser();
+    dispatch(clearUser());
     nav("/login");
   }
 
@@ -188,10 +204,11 @@ export default function SettingsPage() {
     if (!confirm("This will delete your profile data and sign you out. Continue?")) return;
     const r = await wipeAccountAndSignOut();
     if ("error" in r && r.error) alert(String(r.error.message));
+    dispatch(clearUser());
     nav("/login");
   }
 
-  if (!ready) {
+  if (!ready || !user) {
     return (
       <div className="settings-page-bg settings-loading">
         <p>Loading…</p>

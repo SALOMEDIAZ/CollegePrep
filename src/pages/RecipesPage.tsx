@@ -2,12 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { searchMealsByFirstLetter, searchMealsByName, type MealDbMeal } from "../services/api";
 import RecipeCard from "../components/Recipes/RecipeCard";
 import "../styles/recipes.css";
-import {
-  ensureProfileRow,
-  fetchAllergyKeywords,
-  fetchSessionUser,
-  type ProfileRow,
-} from "../services/profileSupabase";
+import { ensureProfileRow, fetchAllergyKeywords } from "../services/profileService";
+import type { ProfileRow } from "../types/profile";
+import { getSessionUserId } from "../services/authService";
 
 function norm(s: string) {
   return s
@@ -101,9 +98,9 @@ const RecipesPage = () => {
   useEffect(() => {
     let alive = true;
     async function run() {
-      const u = await fetchSessionUser();
-      if (!u) return;
-      const { profile: p } = await ensureProfileRow(u.id);
+      const uid = await getSessionUserId();
+      if (!uid) return;
+      const { profile: p } = await ensureProfileRow(uid);
       if (!alive) return;
       setProfile(p);
     }

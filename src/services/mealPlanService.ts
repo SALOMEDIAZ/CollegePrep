@@ -1,6 +1,7 @@
 import supabase from "./supabaseClient";
 import { searchMealsByFirstLetter, type MealDbMeal } from "./api";
-import { ensureProfileRow, fetchAllergyKeywords, type ProfileRow } from "./profileSupabase";
+import { ensureProfileRow, fetchAllergyKeywords } from "./profileService";
+import type { ProfileRow } from "../types/profile";
 import type {
   CreatePlanValues,
   MealPlanDay,

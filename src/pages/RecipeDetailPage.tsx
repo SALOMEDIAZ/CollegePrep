@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import supabase from "../services/supabaseClient";
+import { getSessionUserId } from "../services/authService";
 import { getMealById, type MealDbMeal } from "../services/api";
 import "../styles/recipes.css";
 import "../styles/recipeCard.css";
@@ -314,13 +315,12 @@ const RecipeDetailPage = () => {
       setSaveError(null);
       const mealId = String(meal?.idMeal ?? "").trim();
       if (!mealId) return;
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
-      if (!user) return;
+      const uid = await getSessionUserId();
+      if (!uid) return;
       const { data: saved, error } = await supabase
         .from("saved_recipes")
         .select("id")
-        .eq("user_id", user.id)
+        .eq("user_id", uid)
         .eq("recipe_id", mealId)
         .maybeSingle();
       if (!alive) return;
@@ -342,15 +342,14 @@ const RecipeDetailPage = () => {
       setSaving(true);
       setSaveError(null);
 
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
-      if (!user) {
+      const uid = await getSessionUserId();
+      if (!uid) {
         setSaveError("You must be logged in to save recipes.");
         return;
       }
 
       if (isSaved) {
-        const d = supabase.from("saved_recipes").delete().eq("user_id", user.id).eq("recipe_id", mealId);
+        const d = supabase.from("saved_recipes").delete().eq("user_id", uid).eq("recipe_id", mealId);
         if (savedRowId) d.eq("id", savedRowId);
         const { error: delErr } = await d;
         if (delErr) throw delErr;
@@ -360,7 +359,7 @@ const RecipeDetailPage = () => {
       }
 
       const payload: Pick<SavedRecipeRow, "user_id" | "recipe_id" | "recipe_name"> = {
-        user_id: user.id,
+        user_id: uid,
         recipe_id: mealId,
         recipe_name: String(meal?.strMeal ?? ""),
       };

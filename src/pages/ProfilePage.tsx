@@ -1,45 +1,39 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, type CSSProperties } from "react";
 import "../styles/profile.css";
-import {
-  ensureProfileRow,
-  fetchSessionUser,
-  fetchWeeklyBudgetUsedPercent,
-  type ProfileRow,
-} from "../services/profileSupabase";
-import type { User } from "@supabase/supabase-js";
+import { ensureProfileRow, fetchWeeklyBudgetUsedPercent } from "../services/profileService";
+import type { ProfileRow } from "../types/profile";
+import { useAppSelector } from "../store/store";
 
 const DEF_AVATAR = `/assets/images-icons/${encodeURIComponent("usuario 1.png")}`;
 const SETTINGS_ICON_SRC = "/assets/images-icons/settings.png";
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(null);
+  const reduxUser = useAppSelector((s) => s.profile.user);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [weeklyUsedPct, setWeeklyUsedPct] = useState(0);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const u = await fetchSessionUser();
-      if (!u) return;
-      setUser(u);
-      const { profile: p, error } = await ensureProfileRow(u.id);
+      if (!reduxUser) return;
+      const { profile: p, error } = await ensureProfileRow(reduxUser.id);
       if (error) {
         console.error(error);
         setReady(true);
         return;
       }
       setProfile(p);
-      const usedPct = await fetchWeeklyBudgetUsedPercent(u.id);
+      const usedPct = await fetchWeeklyBudgetUsedPercent(reduxUser.id);
       setWeeklyUsedPct(usedPct);
       setReady(true);
     }
     load();
-  }, []);
+  }, [reduxUser]);
 
   useEffect(() => {
-    if (!user) return;
-    const uid = user.id;
+    if (!reduxUser) return;
+    const uid = reduxUser.id;
     function refreshWeekly() {
       void fetchWeeklyBudgetUsedPercent(uid).then(setWeeklyUsedPct);
     }
@@ -48,11 +42,11 @@ export default function ProfilePage() {
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [user]);
+  }, [reduxUser]);
 
   const avatar = profile?.avatar_url || DEF_AVATAR;
   const name = profile?.full_name?.trim() || "—";
-  const email = user?.email || "—";
+  const email = reduxUser?.email || "—";
   const loc = profile?.location?.trim() || "—";
 
   const allergyLine =
@@ -69,11 +63,9 @@ export default function ProfilePage() {
   if (profile?.gluten_free) preferenceParts.push("Gluten free");
   if (profile?.lactose_free) preferenceParts.push("Lactose free");
   if (profile?.omnivorous) preferenceParts.push("Omnivorous");
-  const preferenceLine = preferenceParts.length
-    ? preferenceParts.join(", ")
-    : "—";
+  const preferenceLine = preferenceParts.length ? preferenceParts.join(", ") : "—";
 
-  if (!ready) {
+  if (!ready || !reduxUser) {
     return (
       <div className="profile-page-bg profile-loading">
         <p>Loading…</p>
@@ -127,21 +119,15 @@ export default function ProfilePage() {
             <ul className="profile-about-list">
               <li>
                 <span className="profile-about-strong">Age</span>{" "}
-                <span className="profile-about-value">
-                  {profile?.age ?? "—"}
-                </span>
+                <span className="profile-about-value">{profile?.age ?? "—"}</span>
               </li>
               <li>
                 <span className="profile-about-strong">College</span>{" "}
-                <span className="profile-about-value">
-                  {profile?.university?.trim() || "—"}
-                </span>
+                <span className="profile-about-value">{profile?.university?.trim() || "—"}</span>
               </li>
               <li>
                 <span className="profile-about-strong">Career</span>{" "}
-                <span className="profile-about-value">
-                  {profile?.career?.trim() || "—"}
-                </span>
+                <span className="profile-about-value">{profile?.career?.trim() || "—"}</span>
               </li>
               <li>
                 <span className="profile-about-strong">Allergies</span>{" "}

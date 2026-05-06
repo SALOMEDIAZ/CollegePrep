@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { fetchSessionUser } from "../../services/profileSupabase";
+import { getSessionUserId } from "../../services/authService";
 import {
   createWeekPlanAndLoad,
   deletePlanAndSelectNext,
@@ -36,13 +36,13 @@ const initialState: MealPlanState = {
 };
 
 export const bootstrapMealPlan = createAsyncThunk("mealPlan/bootstrap", async () => {
-  const u = await fetchSessionUser();
-  if (!u) throw new Error("Not authenticated");
-  await ensureProfileForUser(u.id);
-  const rows = await fetchAllPlans(u.id);
+  const uid = await getSessionUserId();
+  if (!uid) throw new Error("Not authenticated");
+  await ensureProfileForUser(uid);
+  const rows = await fetchAllPlans(uid);
   if (!rows.length) {
     return {
-      userId: u.id,
+      userId: uid,
       plans: rows,
       planIndex: -1,
       planId: null,
@@ -53,9 +53,9 @@ export const bootstrapMealPlan = createAsyncThunk("mealPlan/bootstrap", async ()
       cursorTitle: initialCursor.title,
     };
   }
-  const selected = selectPlanForRange(u.id, rows, initialCursor.startIso, initialCursor.endIso);
+  const selected = selectPlanForRange(uid, rows, initialCursor.startIso, initialCursor.endIso);
   return {
-    userId: u.id,
+    userId: uid,
     plans: rows,
     ...selected,
     cursorStartIso: initialCursor.startIso,

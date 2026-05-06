@@ -1,10 +1,14 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import supabase from "../../services/supabaseClient";
+import { useAppDispatch } from "../../store/store";
+import { setUser } from "../../store/slices/profileSlice";
+import { registerUser } from "../../services/authService";
+import { ensureProfileRow, upsertProfile } from "../../services/profileService";
 
 const SignupForm = () => {
-const navigate = useNavigate();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [fullName, setFullName] = useState("");
   const [university, setUniversity] = useState("");
   const [career, setCareer] = useState("");
@@ -21,141 +25,121 @@ const navigate = useNavigate();
     setSuccess("");
 
     if (!fullName || !email || !password || !confirmPassword) {
-    setError("Please fill in all required fields.");
-    return;
+      setError("Please fill in all required fields.");
+      return;
     }
 
     if (password.length < 6) {
-    setError("Password must be at least 6 characters long.");
-    return;
+      setError("Password must be at least 6 characters long.");
+      return;
     }
 
     if (password !== confirmPassword) {
-    setError("Passwords do not match.");
-    return;
+      setError("Passwords do not match.");
+      return;
     }
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-    data: {
-    full_name: fullName,
-    university,
-    career,
-        },
-    },
-    });
+    try {
+      // REGISTRO EN FIREBASE
+      const user = await registerUser(email, password, { displayName: fullName });
+      // FILA BASE EN SUPABASE PARA DATOS EXTRA
+      const { profile, error: profErr } = await ensureProfileRow(user.id);
+      if (!profErr && profile) {
+        await upsertProfile(user.id, {
+          full_name: fullName,
+          university,
+          career,
+        });
+      }
+      // ESTO GUARDA EN REDUX
+      dispatch(setUser(user));
+      setSuccess("Registration successful, please check your email and then log in.");
+      navigate("/recipes");
+      setFullName("");
+      setUniversity("");
+      setCareer("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error during registration");
+    }
 
     setLoading(false);
+  };
 
-    if (error) {
-    setError(error.message || "Error during registration");
-    return;
-    }
-
-    setSuccess(
-    "Registration successful, please check your email and then log in.",
-    );
-
-    if (data.session) {
-        return navigate("/recipes");
-    }
-
-    setFullName("");
-    setUniversity("");
-    setCareer("");
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
-};
-
-return (
+  return (
     <form onSubmit={onSubmit} className="auth-form">
-    <div>
+      <div>
         <label htmlFor="fullName">Full Name</label>
         <input
-        id="fullName"
-        value={fullName}
-        onChange={(e) => setFullName(e.target.value)}
-        required
+          id="fullName"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
         />
-    </div>
+      </div>
 
-    <div>
+      <div>
         <label htmlFor="university">University</label>
-        <input
-        id="university"
-        value={university}
-        onChange={(e) => setUniversity(e.target.value)}
-        />
-    </div>
+        <input id="university" value={university} onChange={(e) => setUniversity(e.target.value)} />
+      </div>
 
-    <div>
+      <div>
         <label htmlFor="career">Career</label>
-        <input
-        id="career"
-        value={career}
-        onChange={(e) => setCareer(e.target.value)}
-        />
-    </div>
+        <input id="career" value={career} onChange={(e) => setCareer(e.target.value)} />
+      </div>
 
-    <div>
+      <div>
         <label htmlFor="email">Email</label>
-        <input
-        id="email"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        />
-    </div>
+        <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      </div>
 
-    <div>
+      <div>
         <label htmlFor="password">Password</label>
         <input
-        id="password"
-        type="password"
-        value={password}
-        minLength={6}
-        onChange={(e) => setPassword(e.target.value)}
-        required
+          id="password"
+          type="password"
+          value={password}
+          minLength={6}
+          onChange={(e) => setPassword(e.target.value)}
+          required
         />
-    </div>
+      </div>
 
-    <div>
+      <div>
         <label htmlFor="confirmPassword">Confirm Password</label>
         <input
-        id="confirmPassword"
-        type="password"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        required
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
         />
-    </div>
+      </div>
 
-    {error && (
-        <div  className="auth-message auth-message--error" role="alert">
-        {error}
+      {error && (
+        <div className="auth-message auth-message--error" role="alert">
+          {error}
         </div>
-    )}
+      )}
 
-    {success && (
+      {success && (
         <div className="auth-message auth-message--success" role="status">
-        {success}
+          {success}
         </div>
-    )}
+      )}
 
-    <button type="submit" disabled={loading} className="auth-submit">
+      <button type="submit" disabled={loading} className="auth-submit">
         {loading ? "Loading..." : "Create Account"}
-    </button>
-    <div className="auth-link">
+      </button>
+      <div className="auth-link">
         <span>Already have an account?</span> <Link to="/login">Log In</Link>
-    </div>
+      </div>
     </form>
-);
+  );
 };
 
 export default SignupForm;

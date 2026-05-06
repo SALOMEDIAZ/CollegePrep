@@ -1,37 +1,32 @@
 import { Navigate } from "react-router-dom";
-import { useEffect, useState, type ReactNode } from "react";
-import supabase from "../services/supabaseClient";
+import { useEffect, useState } from "react";
+import type { RequireAuthProps } from "../types/auth";
+import { useAppDispatch } from "../store/store";
+import { clearUser, setUser } from "../store/slices/profileSlice";
+import { subscribeAuth } from "../services/authService";
 import { NavBar } from "../components/Common/NavBar";
 
-interface RequireAuthProps {
-  children: ReactNode;
-}
-
 const RequireAuth = ({ children }: RequireAuthProps) => {
+  const dispatch = useAppDispatch();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let alive = true;
-
-    const checkUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!alive) return;
-      setIsAuthenticated(Boolean(data.user && !error));
+    const unsub = subscribeAuth((appUser) => {
+      if (appUser) {
+        dispatch(setUser(appUser));
+        setIsAuthenticated(true);
+      } else {
+        dispatch(clearUser());
+        setIsAuthenticated(false);
+      }
       setLoading(false);
-    };
-
-    checkUser();
-
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      checkUser();
     });
 
     return () => {
-      alive = false;
-      sub.subscription.unsubscribe();
+      unsub();
     };
-  }, []);
+  }, [dispatch]);
 
   if (loading) return <div>Cargando...</div>;
   if (!isAuthenticated) return <Navigate to="/login" />;

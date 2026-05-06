@@ -1,27 +1,7 @@
 import supabase from "./supabaseClient";
-
-export type ProfileRow = {
-  id: string;
-  full_name: string | null;
-  username: string | null;
-  age: number | null;
-  location: string | null;
-  university: string | null;
-  career: string | null;
-  avatar_url: string | null;
-  budget_percent: number | null;
-  allergies: string[] | null;
-  vegetarian: boolean | null;
-  vegan: boolean | null;
-  gluten_free: boolean | null;
-  lactose_free: boolean | null;
-  omnivorous: boolean | null;
-  notif_kitchen: boolean | null;
-  notif_budget: boolean | null;
-  notif_recipe: boolean | null;
-};
-
-export type ProfilePatch = Partial<Omit<ProfileRow, "id">>;
+import { signOut } from "firebase/auth";
+import type { ProfilePatch, ProfileRow } from "../types/profile";
+import { auth } from "./firebase";
 
 type AllergyRow = {
   id: string;
@@ -89,12 +69,6 @@ export async function fetchAllergyKeywords(allergyKeysOrNames: string[]) {
   return rows.map((r) => String(r.keyword ?? "").trim()).filter(Boolean);
 }
 
-export async function fetchSessionUser() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return null;
-  return data.user ?? null;
-}
-
 export async function fetchProfileByUserId(userId: string) {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
   if (error) return { profile: null as ProfileRow | null, error };
@@ -109,7 +83,7 @@ export async function ensureProfileRow(userId: string) {
   if (insErr) {
     const code = String((insErr as { code?: unknown })?.code ?? "");
     if (code === "23503") {
-      await supabase.auth.signOut();
+      await signOut(auth);
       return {
         profile: null as ProfileRow | null,
         error: new Error("Your login session is not valid for this database project. Please log in again."),
@@ -134,23 +108,18 @@ export async function persistAvatar(file: File, userId: string) {
   return upsertProfile(userId, { avatar_url: data.publicUrl });
 }
 
-export async function logoutUser() {
-  return supabase.auth.signOut();
-}
-
 export async function wipeAccountAndSignOut() {
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
+  await auth.authStateReady();
+  const user = auth.currentUser;
   if (!user) return { error: new Error("No session") };
-  const { data: files } = await supabase.storage.from("avatars").list(user.id);
+  const { data: files } = await supabase.storage.from("avatars").list(user.uid);
   if (files?.length) {
-    await supabase.storage.from("avatars").remove(files.map((f) => `${user.id}/${f.name}`));
+    await supabase.storage.from("avatars").remove(files.map((f) => `${user.uid}/${f.name}`));
   }
-  await supabase.from("profiles").delete().eq("id", user.id);
-  await supabase.auth.signOut();
+  await supabase.from("profiles").delete().eq("id", user.uid);
+  await signOut(auth);
   return {};
 }
-
 
 export async function fetchWeeklyBudgetUsedPercent(userId: string): Promise<number> {
   const { data, error } = await supabase
