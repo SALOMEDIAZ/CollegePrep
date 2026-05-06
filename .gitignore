@@ -15,8 +15,7 @@ dist-ssr
 .env.*
 !.env.example
 
-# Cursor
-.cursor/
+
 
 # Editor directories and files
 .vscode/*
