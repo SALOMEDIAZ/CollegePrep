@@ -1,28 +1,7 @@
 import { Link } from "react-router-dom";
+import type { MealPlanViewModel, MealType } from "../../types/mealPlan";
 
-export type MealType = "breakfast" | "lunch" | "dinner";
-export type Weekday = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
-
-export type MealPlanMeal = {
-  mealType: MealType;
-  recipeId: string;
-  recipeName: string;
-  recipeThumb: string | null;
-  cost: number;
-};
-
-export type MealPlanDay = {
-  date: string;
-  weekday: Weekday;
-  meals: MealPlanMeal[];
-};
-
-export type MealPlanViewModel = {
-  title: string;
-  budget: number;
-  used: number;
-  days: MealPlanDay[];
-};
+export type { MealPlanDay, MealPlanMeal, MealPlanViewModel, MealType, Weekday } from "../../types/mealPlan";
 
 function fmtCop(n: number) {
   return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Math.round(n));
@@ -41,7 +20,13 @@ function mealTypeLabel(t: MealType) {
   return "Dinner";
 }
 
-export default function MealPlan({ plan }: { plan: MealPlanViewModel }) {
+export default function MealPlan({
+  plan,
+  onReplaceMeal,
+}: {
+  plan: MealPlanViewModel;
+  onReplaceMeal?: (args: { date: string; mealType: MealType; recipeId: string }) => void;
+}) {
   const pct = plan.budget > 0 ? Math.min(100, Math.round((plan.used / plan.budget) * 100)) : 0;
 
   const types: MealType[] = ["breakfast", "lunch", "dinner"];
@@ -73,9 +58,27 @@ export default function MealPlan({ plan }: { plan: MealPlanViewModel }) {
                       <div className="mp-mealName">{m.recipeName}</div>
                       <div className="mp-mealCost">${fmtCop(m.cost)}</div>
                     </div>
-                    <Link className="mp-seeRecipeBtn" to={`/recipes/${m.recipeId}`}>
-                      See recipe
-                    </Link>
+                    <div className="mp-mealActions">
+                      <Link className="mp-seeRecipeBtn" to={`/recipes/${m.recipeId}`}>
+                        See recipe
+                      </Link>
+                      {onReplaceMeal ? (
+                        <button
+                          type="button"
+                          className="mp-changeBtn"
+                          onClick={() => onReplaceMeal({ date: d.date, mealType: m.mealType, recipeId: m.recipeId })}
+                          aria-label="Change recipe"
+                          title="Change recipe"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" className="mp-changeIcon">
+                            <path d="M6 9a7 7 0 0 1 12.1-4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M18 4v4h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M18 15a7 7 0 0 1-12.1 4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M6 20v-4h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
                 {!d.meals.length ? <div className="mp-emptyDay">No meals planned</div> : null}
@@ -113,9 +116,27 @@ export default function MealPlan({ plan }: { plan: MealPlanViewModel }) {
                                   <div className="mp-mealName">{m.recipeName}</div>
                                   <div className="mp-mealCost">{fmtCop(m.cost)}</div>
                                 </div>
-                                <Link className="mp-seeRecipeBtn" to={`/recipes/${m.recipeId}`}>
-                                  See recipe
-                                </Link>
+                                <div className="mp-mealActions">
+                                  <Link className="mp-seeRecipeBtn" to={`/recipes/${m.recipeId}`}>
+                                    See recipe
+                                  </Link>
+                                  {onReplaceMeal ? (
+                                    <button
+                                      type="button"
+                                      className="mp-changeBtn"
+                                      onClick={() => onReplaceMeal({ date: d.date, mealType: m.mealType, recipeId: m.recipeId })}
+                                      aria-label="Change recipe"
+                                      title="Change recipe"
+                                    >
+                                      <svg viewBox="0 0 24 24" aria-hidden="true" className="mp-changeIcon">
+                                        <path d="M6 9a7 7 0 0 1 12.1-4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                        <path d="M18 4v4h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        <path d="M18 15a7 7 0 0 1-12.1 4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                        <path d="M6 20v-4h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                    </button>
+                                  ) : null}
+                                </div>
                               </div>
                             ))}
                           </div>

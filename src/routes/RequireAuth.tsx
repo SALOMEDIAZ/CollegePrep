@@ -12,13 +12,25 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setIsAuthenticated(Boolean(data.session));
+    let alive = true;
+
+    const checkUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (!alive) return;
+      setIsAuthenticated(Boolean(data.user && !error));
       setLoading(false);
     };
 
-    checkSession();
+    checkUser();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      checkUser();
+    });
+
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   if (loading) return <div>Cargando...</div>;

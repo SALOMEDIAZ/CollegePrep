@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import supabase from "../../services/supabaseClient";
 
 const SignupForm = () => {
@@ -152,7 +152,7 @@ return (
         {loading ? "Loading..." : "Create Account"}
     </button>
     <div className="auth-link">
-        <span>Already have an account?</span> <a href="/login">Log In</a>
+        <span>Already have an account?</span> <Link to="/login">Log In</Link>
     </div>
     </form>
 );

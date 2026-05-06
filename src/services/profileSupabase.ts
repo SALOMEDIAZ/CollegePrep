@@ -90,8 +90,9 @@ export async function fetchAllergyKeywords(allergyKeysOrNames: string[]) {
 }
 
 export async function fetchSessionUser() {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.user ?? null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user ?? null;
 }
 
 export async function fetchProfileByUserId(userId: string) {
@@ -105,7 +106,17 @@ export async function ensureProfileRow(userId: string) {
   if (error) return { profile: null as ProfileRow | null, error };
   if (profile) return { profile, error: null as null };
   const { data, error: insErr } = await supabase.from("profiles").insert({ id: userId }).select("*").single();
-  if (insErr) return { profile: null as ProfileRow | null, error: insErr };
+  if (insErr) {
+    const code = String((insErr as { code?: unknown })?.code ?? "");
+    if (code === "23503") {
+      await supabase.auth.signOut();
+      return {
+        profile: null as ProfileRow | null,
+        error: new Error("Your login session is not valid for this database project. Please log in again."),
+      };
+    }
+    return { profile: null as ProfileRow | null, error: insErr };
+  }
   return { profile: data as ProfileRow, error: null as null };
 }
 

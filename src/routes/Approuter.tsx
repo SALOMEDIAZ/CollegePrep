@@ -8,7 +8,6 @@ import RequireAuth from "./RequireAuth.tsx";
 import Landing from "../pages/LandingPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
 import SettingsPage from "../pages/SettingsPage.tsx";
-import "./App.css";
 
 function AppRouter() {
   return (
