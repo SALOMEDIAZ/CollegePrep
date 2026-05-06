@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "../../store/store";
 import { setUser } from "../../store/slices/profileSlice";
 import { registerUser } from "../../services/authService";
+import { friendlyFirebaseAuthMessage } from "../../services/authErrors";
 import { ensureProfileRow, upsertProfile } from "../../services/profileService";
 
 const SignupForm = () => {
@@ -64,7 +65,7 @@ const SignupForm = () => {
       setPassword("");
       setConfirmPassword("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error during registration");
+      setError(friendlyFirebaseAuthMessage(e));
     }
 
     setLoading(false);

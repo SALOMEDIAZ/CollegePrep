@@ -143,6 +143,26 @@
     @apply input input-bordered w-full border-[#A6CE39]/50 bg-white;
   }
 
+  .settings-field-note {
+    @apply mt-1 block max-w-xl text-xs leading-snug text-[#666];
+  }
+
+  .settings-save-notice {
+    @apply text-sm font-medium;
+  }
+
+  .settings-save-notice--ok {
+    @apply text-[#3d7c1f];
+  }
+
+  .settings-save-notice--warn {
+    @apply text-[#b45309];
+  }
+
+  .settings-save-notice--err {
+    @apply text-[#b91c1c];
+  }
+
   .settings-save {
     @apply btn mt-2 w-full border-0 bg-[#8bc34a] font-semibold text-white hover:bg-[#7cb342] md:w-auto md:self-end;
   }

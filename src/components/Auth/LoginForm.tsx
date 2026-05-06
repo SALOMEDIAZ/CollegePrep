@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "../../store/store";
 import { setUser } from "../../store/slices/profileSlice";
 import { loginUser } from "../../services/authService";
+import { friendlyFirebaseAuthMessage } from "../../services/authErrors";
 
 const LoginForm = () => {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ const LoginForm = () => {
       dispatch(setUser(user));
       navigate("/recipes");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error during login");
+      setError(friendlyFirebaseAuthMessage(e));
     }
 
     setLoading(false);

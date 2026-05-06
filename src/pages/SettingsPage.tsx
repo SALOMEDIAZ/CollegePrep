@@ -9,6 +9,7 @@ import {
   wipeAccountAndSignOut,
 } from "../services/profileService";
 import { firebaseUserToAppUser, logoutUser, updateUserEmail } from "../services/authService";
+import { friendlyFirebaseAuthMessage } from "../services/authErrors";
 import { auth } from "../services/firebase";
 import { useAppDispatch, useAppSelector } from "../store/store";
 import { clearUser, setUser } from "../store/slices/profileSlice";
@@ -63,6 +64,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
 
   useEffect(() => {
     if (!reduxUser) return;
@@ -110,7 +112,6 @@ export default function SettingsPage() {
 
   const textFields = [
     { label: "Name", value: name, set: setName },
-    { label: "Email", value: email, set: setEmail, type: "email" as const },
     { label: "Username (without @)", value: username, set: setUsername },
     { label: "Age", value: age, set: setAge, type: "number" as const },
     { label: "Location", value: location, set: setLocation },
@@ -120,8 +121,12 @@ export default function SettingsPage() {
 
   async function saveAll() {
     if (!user) return;
+    setSaveNotice(null);
     setSaving(true);
+
     const ageNum = age.trim() === "" ? null : Number.parseInt(age, 10);
+
+    // PRIMERO SUPABASE: DIETA, ALERGIAS, CARRERA, ETC (SIN EMAIL NI PASSWORD EN SUPABASE AUTH)
     const res = await upsertProfile(user.id, {
       full_name: name,
       username: username.replace(/^@/, ""),
@@ -140,12 +145,25 @@ export default function SettingsPage() {
       notif_recipe: notif.r,
     });
 
-    // ACTUALIZAR EMAIL EN FIREBASE
+    if (res.error) {
+      setSaving(false);
+      setSaveNotice({
+        kind: "err",
+        text: "Could not save your profile preferences. Check your Supabase keys in .env and try again.",
+      });
+      return;
+    }
+
+    // DESPUES FIREBASE: SOLO SI CAMBIA EL EMAIL DE LOGIN
     if (email.trim() && email.trim() !== user.email) {
       const eRes = await updateUserEmail(email.trim());
       if (eRes.error) {
+        setEmail(user.email);
         setSaving(false);
-        alert(eRes.error.message);
+        setSaveNotice({
+          kind: "warn",
+          text: `Your preferences were saved. Email was not updated: ${friendlyFirebaseAuthMessage(eRes.error)}`,
+        });
         return;
       }
       await auth.currentUser?.reload();
@@ -157,7 +175,7 @@ export default function SettingsPage() {
     }
 
     setSaving(false);
-    if (res.error) alert(res.error.message);
+    setSaveNotice({ kind: "ok", text: "Your preferences were saved." });
   }
 
   function onPickPhoto() {
@@ -169,7 +187,7 @@ export default function SettingsPage() {
     if (!f || !user) return;
     const r = await persistAvatar(f, user.id);
     if (r.error) {
-      alert(String(r.error.message || r.error));
+      setSaveNotice({ kind: "err", text: "Could not update your photo. Check permissions and try again." });
     } else {
       const { profile: p } = await fetchProfileByUserId(user.id);
       if (p?.avatar_url) setPreview(p.avatar_url);
@@ -275,6 +293,18 @@ export default function SettingsPage() {
               <p className="settings-handle">@{handle}</p>
             </div>
             <div className="settings-fields">
+              <label className="settings-field">
+                <span className="settings-field-label">Email (Firebase login)</span>
+                <input
+                  type="email"
+                  className="settings-inp"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <span className="settings-field-note">
+                  Login email stays in Firebase. Diet, allergies, and school info stay in Supabase.
+                </span>
+              </label>
               {textFields.map((f) => (
                 <label key={f.label} className="settings-field">
                   <span className="settings-field-label">{f.label}</span>
@@ -287,6 +317,14 @@ export default function SettingsPage() {
                   />
                 </label>
               ))}
+              {saveNotice && (
+                <p
+                  className={`settings-save-notice settings-save-notice--${saveNotice.kind}`}
+                  role="status"
+                >
+                  {saveNotice.text}
+                </p>
+              )}
               <button type="button" disabled={saving} className="settings-save" onClick={() => saveAll()}>
                 {saving ? "Saving…" : "Save Changes"}
               </button>
