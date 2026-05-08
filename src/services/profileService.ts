@@ -1,7 +1,9 @@
 import supabase from "./supabaseClient";
 import { signOut } from "firebase/auth";
 import type { ProfilePatch, ProfileRow } from "../types/profile";
+import type { CreatePlanValues, Weekday } from "../types/mealPlan";
 import { auth } from "./firebase";
+import { buildAvoidKeywordSets, buildMealsForSlots, buildRestrictionValues, fromISODate } from "./mealPlanLogic";
 
 type AllergyRow = {
   id: string;
@@ -16,8 +18,6 @@ type AllergyKeywordRow = {
   allergy_key: string | null;
   keyword: string | null;
 };
-
-let allergyIndexPromise: Promise<Map<string, string>> | null = null;
 
 function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -79,20 +79,16 @@ function normKey(s: string) {
 }
 
 async function getAllergyKeyIndex() {
-  if (allergyIndexPromise) return allergyIndexPromise;
-  allergyIndexPromise = (async () => {
-    const { data, error } = await supabase.from("allergies").select("key,name");
-    if (error) throw error;
-    const map = new Map<string, string>();
-    for (const row of (data ?? []) as Pick<AllergyRow, "key" | "name">[]) {
-      const key = String(row.key ?? "").trim();
-      const name = String(row.name ?? "").trim();
-      if (key) map.set(normKey(key), key);
-      if (name && key) map.set(normKey(name), key);
-    }
-    return map;
-  })();
-  return allergyIndexPromise;
+  const { data, error } = await supabase.from("allergies").select("key,name");
+  if (error) throw error;
+  const map = new Map<string, string>();
+  for (const row of (data ?? []) as Pick<AllergyRow, "key" | "name">[]) {
+    const key = String(row.key ?? "").trim();
+    const name = String(row.name ?? "").trim();
+    if (key) map.set(normKey(key), key);
+    if (name && key) map.set(normKey(name), key);
+  }
+  return map;
 }
 
 export async function resolveAllergyKeys(allergyValues: string[]) {
@@ -193,12 +189,19 @@ export async function fetchWeeklyBudgetUsedPercent(userId: string): Promise<numb
   if (!dbUserId) return 0;
   const { data, error } = await supabase
     .from("meal_plans")
-    .select("id,start_date,end_date")
+    .select("id,start_date,end_date,budget,only_saved_recipes,only_new_recipes")
     .eq("user_id", dbUserId)
     .order("start_date", { ascending: true });
   if (error || !data?.length) return 0;
 
-  const rows = data as { id: string; start_date: string; end_date: string }[];
+  const rows = data as Array<{
+    id: string;
+    start_date: string;
+    end_date: string;
+    budget: number | string | null;
+    only_saved_recipes: boolean | null;
+    only_new_recipes: boolean | null;
+  }>;
   const todayIso = (() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -212,17 +215,50 @@ export async function fetchWeeklyBudgetUsedPercent(userId: string): Promise<numb
   const row = rows[idx];
   if (!row) return 0;
 
-  const key = `mealplan:${userId}:${row.id}`;
-  const raw = typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
-  if (!raw) return 0;
+  const budget = Number(row.budget ?? 0) || 0;
+  if (!(budget > 0)) return 0;
 
-  try {
-    const vm = JSON.parse(raw) as { budget?: number; used?: number };
-    const b = Number(vm.budget ?? 0);
-    const u = Number(vm.used ?? 0);
-    if (b <= 0) return 0;
-    return Math.min(100, Math.round((u / b) * 100));
-  } catch {
-    return 0;
+  const { profile } = await fetchProfileByUserId(dbUserId);
+  const restrictionValues = buildRestrictionValues(profile);
+  const allergyKeywords = await fetchAllergyKeywords(restrictionValues);
+  const avoid = profile ? buildAvoidKeywordSets(profile, allergyKeywords) : { allergyAvoid: new Set<string>(), dietAvoid: new Set<string>() };
+
+  const { data: savedRows, error: savedErr } = await supabase
+    .from("saved_recipes")
+    .select("recipe_id")
+    .eq("user_id", dbUserId);
+  if (savedErr) return 0;
+  const savedIdsArr = ((savedRows ?? []) as Array<{ recipe_id: string | null }>).map((r) => String(r.recipe_id ?? "")).filter(Boolean);
+
+  const { data: dayRows, error: dayErr } = await supabase.from("meal_plan_days").select("date,weekday").eq("meal_plan_id", row.id);
+  if (dayErr) return 0;
+
+  const allFalse = { breakfast: false, lunch: false, dinner: false };
+  const days: Weekday[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const selections = {} as CreatePlanValues["selections"];
+  for (const d of days) selections[d] = { ...allFalse };
+  for (const d of (dayRows ?? []) as Array<{ weekday: string | null }>) {
+    const wd = String(d.weekday ?? "").trim() as Weekday;
+    if (!wd) continue;
+    selections[wd] = { breakfast: true, lunch: true, dinner: true };
   }
+
+  const values: CreatePlanValues = {
+    budget,
+    onlySavedRecipes: Boolean(row.only_saved_recipes),
+    onlyNewRecipes: Boolean(row.only_new_recipes),
+    selections,
+  };
+
+  const vm = await buildMealsForSlots({
+    values,
+    savedIdsArr,
+    weekTitle: "Week",
+    rangeStart: fromISODate(row.start_date),
+    rangeEnd: fromISODate(row.end_date),
+    avoid,
+  });
+
+  if (!(vm.budget > 0)) return 0;
+  return Math.min(100, Math.round((vm.used / vm.budget) * 100));
 }

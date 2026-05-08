@@ -2,8 +2,6 @@ import supabase from "./supabaseClient";
 import { getMealById, type MealDbMeal } from "./api";
 import type { IngredientIndex, IngredientRow } from "../types/mealPlan";
 
-let ingredientIndexPromise: Promise<IngredientIndex> | null = null;
-
 function normIngredientName(name: string) {
   return name
     .toLowerCase()
@@ -14,27 +12,23 @@ function normIngredientName(name: string) {
     .trim();
 }
 
-async function getIngredientIndex(): Promise<IngredientIndex> {
-  if (ingredientIndexPromise) return ingredientIndexPromise;
-  ingredientIndexPromise = (async () => {
-    const { data, error } = await supabase.from("ingredients").select("id,name,price");
-    if (error) throw error;
-    const byNorm = new Map<string, number>();
-    const list: IngredientIndex["list"] = [];
-    const priceById = new Map<number, number>();
-    for (const row of (data ?? []) as IngredientRow[]) {
-      const name = String(row.name ?? "").trim();
-      if (!name) continue;
-      const norm = normIngredientName(name);
-      if (!norm) continue;
-      if (!byNorm.has(norm)) byNorm.set(norm, row.id);
-      list.push({ id: row.id, name, norm });
-      const price = Number(row.price ?? 0);
-      if (Number.isFinite(price)) priceById.set(row.id, price);
-    }
-    return { byNorm, list, priceById };
-  })();
-  return ingredientIndexPromise;
+export async function getIngredientIndex(): Promise<IngredientIndex> {
+  const { data, error } = await supabase.from("ingredients").select("id,name,price");
+  if (error) throw error;
+  const byNorm = new Map<string, number>();
+  const list: IngredientIndex["list"] = [];
+  const priceById = new Map<number, number>();
+  for (const row of (data ?? []) as IngredientRow[]) {
+    const name = String(row.name ?? "").trim();
+    if (!name) continue;
+    const norm = normIngredientName(name);
+    if (!norm) continue;
+    if (!byNorm.has(norm)) byNorm.set(norm, row.id);
+    list.push({ id: row.id, name, norm });
+    const price = Number(row.price ?? 0);
+    if (Number.isFinite(price)) priceById.set(row.id, price);
+  }
+  return { byNorm, list, priceById };
 }
 
 function pickBestIngredientId(name: string, index: IngredientIndex) {
@@ -65,16 +59,32 @@ function extractIngredientNames(meal: MealDbMeal | null) {
   return out;
 }
 
-export async function computeMealCost(meal: MealDbMeal) {
+export function computeMealCostWithIndex(meal: MealDbMeal, index: IngredientIndex) {
   const names = extractIngredientNames(meal);
   if (!names.length) return 0;
-  const index = await getIngredientIndex();
   const uniq = Array.from(new Set(names.map((n) => String(n).trim()))).filter(Boolean);
   const pickedIds = uniq
     .map((n) => pickBestIngredientId(n, index))
     .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
   const uniqueIds = Array.from(new Set(pickedIds));
   return uniqueIds.reduce((acc, id) => acc + Number(index.priceById.get(id) ?? 0), 0);
+}
+
+export async function computeMealCost(meal: MealDbMeal) {
+  const index = await getIngredientIndex();
+  return computeMealCostWithIndex(meal, index);
+}
+
+export async function resolveMealWithCostUsingIndex(mealId: string, index: IngredientIndex) {
+  const m = await getMealById(mealId);
+  if (!m) return null;
+  const cost = computeMealCostWithIndex(m, index);
+  return {
+    recipeId: String(m.idMeal),
+    recipeName: String(m.strMeal ?? m.idMeal),
+    recipeThumb: m.strMealThumb ?? null,
+    cost,
+  };
 }
 
 export async function resolveMealWithCost(mealId: string) {

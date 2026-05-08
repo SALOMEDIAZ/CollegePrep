@@ -1,10 +1,27 @@
 import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import type { MealPlanViewModel, MealType } from "../../types/mealPlan";
 
 export type { MealPlanDay, MealPlanMeal, MealPlanViewModel, MealType, Weekday } from "../../types/mealPlan";
 
 function fmtCop(n: number) {
   return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Math.round(n));
+}
+
+function useMediaQuery(query: string) {
+  const getMatches = () => (typeof window !== "undefined" ? window.matchMedia(query).matches : false);
+  const [matches, setMatches] = useState(getMatches);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia(query);
+    const handler = () => setMatches(mql.matches);
+    handler();
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+
+  return matches;
 }
 
 function fmtDayLabel(iso: string) {
@@ -20,6 +37,13 @@ function mealTypeLabel(t: MealType) {
   return "Dinner";
 }
 
+function toThumbPreviewUrl(url: string) {
+  const u = String(url || "").trim();
+  if (!u) return null;
+  if (u.endsWith("/preview")) return u;
+  return `${u}/preview`;
+}
+
 export default function MealPlan({
   plan,
   onReplaceMeal,
@@ -29,7 +53,8 @@ export default function MealPlan({
 }) {
   const pct = plan.budget > 0 ? Math.min(100, Math.round((plan.used / plan.budget) * 100)) : 0;
 
-  const types: MealType[] = ["breakfast", "lunch", "dinner"];
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  const types: MealType[] = useMemo(() => ["breakfast", "lunch", "dinner"], []);
 
   return (
     <div className="mp-plan">
@@ -40,9 +65,10 @@ export default function MealPlan({
       </div>
 
       <div className="mp-days">
-        {plan.days.map((d) => (
+        {plan.days.map((d, dayIdx) => (
           <div key={d.date} className="mp-dayBlock">
-            <div className="mp-desktop">
+            {!isMobile ? (
+              <div className="mp-desktop">
               <div className="mp-dayHeader">
                 <div className="mp-dayHeaderTitle">
                   {d.weekday} <span className="mp-dayHeaderDate">{d.date}</span>
@@ -50,9 +76,24 @@ export default function MealPlan({
               </div>
 
               <div className="mp-mealRow">
-                {d.meals.map((m) => (
+                {d.meals.map((m, mealIdx) => {
+                  const src = m.recipeThumb ? toThumbPreviewUrl(m.recipeThumb) : null;
+                  const isLcp = dayIdx === 0 && mealIdx === 0;
+                  return (
                   <div key={`${d.date}-${m.mealType}-${m.recipeId}`} className="mp-mealCard">
-                    {m.recipeThumb ? <img className="mp-mealImg" src={m.recipeThumb} alt="" aria-hidden="true" /> : null}
+                    {src ? (
+                      <img
+                        className="mp-mealImg"
+                        src={src}
+                        alt=""
+                        aria-hidden="true"
+                        loading={isLcp ? "eager" : "lazy"}
+                        decoding="async"
+                        width={96}
+                        height={96}
+                        fetchPriority={isLcp ? "high" : "auto"}
+                      />
+                    ) : null}
                     <div className="mp-mealInfo">
                       <div className="mp-mealType">{mealTypeLabel(m.mealType)}</div>
                       <div className="mp-mealName">{m.recipeName}</div>
@@ -80,11 +121,12 @@ export default function MealPlan({
                       ) : null}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {!d.meals.length ? <div className="mp-emptyDay">No meals planned</div> : null}
               </div>
             </div>
-
+            ) : (
             <div className="mp-mobile">
               <div className="mp-dayTitle">{fmtDayLabel(d.date)}</div>
 
@@ -106,10 +148,23 @@ export default function MealPlan({
                           </div>
 
                           <div className="mp-mealRow">
-                            {g.meals.map((m) => (
+                            {g.meals.map((m, mealIdx) => {
+                              const src = m.recipeThumb ? toThumbPreviewUrl(m.recipeThumb) : null;
+                              const isLcp = dayIdx === 0 && mealIdx === 0;
+                              return (
                               <div key={`${d.date}-${m.mealType}-${m.recipeId}`} className="mp-mealCard">
-                                {m.recipeThumb ? (
-                                  <img className="mp-mealImg" src={m.recipeThumb} alt="" aria-hidden="true" />
+                                {src ? (
+                                  <img
+                                    className="mp-mealImg"
+                                    src={src}
+                                    alt=""
+                                    aria-hidden="true"
+                                    loading={isLcp ? "eager" : "lazy"}
+                                    decoding="async"
+                                    width={96}
+                                    height={96}
+                                    fetchPriority={isLcp ? "high" : "auto"}
+                                  />
                                 ) : null}
                                 <div className="mp-mealInfo">
                                   <div className="mp-mealType">{mealTypeLabel(m.mealType)}</div>
@@ -138,7 +193,8 @@ export default function MealPlan({
                                   ) : null}
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -148,6 +204,7 @@ export default function MealPlan({
                 <div className="mp-emptyDay">No meals planned</div>
               )}
             </div>
+            )}
           </div>
         ))}
       </div>

@@ -1,20 +1,34 @@
-import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSelector, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { getSessionUserId } from "../../services/authService";
 import {
   createWeekPlanAndLoad,
   deletePlanAndSelectNext,
   ensureProfileForUser,
   fetchAllPlans,
+  loadPlanViewModel,
+  replaceMealInPlan,
+  selectPlanForRangeAndLoad,
+} from "../../services/mealPlanService";
+import {
+  addDaysISO,
+  defaultSelectedDay,
+  formatDayTitle,
   getWeekInfoForDate,
   getWeekInfoFromStartIso,
-  replaceMealInPlan,
-  selectPlanForRange,
   shiftWeekStartIso,
-} from "../../services/mealPlanService";
+} from "../../services/mealPlanLogic";
 import type { RootState } from "../store";
-import type { CreatePlanValues, MealPlanState } from "../../types/mealPlan";
+import type { CreatePlanValues, MealPlanDay, MealPlanState, MealPlanViewModel, Weekday } from "../../types/mealPlan";
 
-export { addDaysISO, formatDayTitle } from "../../services/mealPlanService";
+export { addDaysISO, formatDayTitle } from "../../services/mealPlanLogic";
+
+function weekdayFromISODate(iso: string): Weekday {
+  const [y, m, d] = iso.split("-").map((x) => Number(x));
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  dt.setHours(0, 0, 0, 0);
+  const map: Weekday[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return map[dt.getDay()] ?? "Mon";
+}
 
 const initialCursor = getWeekInfoForDate(new Date(), 0);
 
@@ -53,7 +67,7 @@ export const bootstrapMealPlan = createAsyncThunk("mealPlan/bootstrap", async ()
       cursorTitle: initialCursor.title,
     };
   }
-  const selected = selectPlanForRange(uid, rows, initialCursor.startIso, initialCursor.endIso);
+  const selected = await selectPlanForRangeAndLoad(uid, rows, initialCursor.startIso, initialCursor.endIso);
   return {
     userId: uid,
     plans: rows,
@@ -72,13 +86,16 @@ export const shiftWeek = createAsyncThunk("mealPlan/shiftWeek", async (deltaWeek
   const nextCursor = getWeekInfoFromStartIso(nextStartIso, new Date());
   if (!userId) {
     return {
-      ...selectPlanForRange("", [], nextCursor.startIso, nextCursor.endIso),
+      planIndex: -1,
+      planId: null as string | null,
+      plan: null as MealPlanState["plan"],
+      selectedDay: null as string | null,
       cursorStartIso: nextCursor.startIso,
       cursorEndIso: nextCursor.endIso,
       cursorTitle: nextCursor.title,
     };
   }
-  const selected = selectPlanForRange(userId, rows, nextCursor.startIso, nextCursor.endIso);
+  const selected = await selectPlanForRangeAndLoad(userId, rows, nextCursor.startIso, nextCursor.endIso);
   return { ...selected, cursorStartIso: nextCursor.startIso, cursorEndIso: nextCursor.endIso, cursorTitle: nextCursor.title };
 });
 
@@ -86,8 +103,12 @@ export const loadPlanByIndex = createAsyncThunk("mealPlan/loadByIndex", async (i
   const state = getState() as RootState;
   const userId = state.mealPlan.userId;
   const rows = state.mealPlan.plans;
-  if (!userId || !rows.length || idx < 0 || idx >= rows.length) return selectPlanForRange(userId ?? "", [], "", "");
-  return selectPlanForRange(userId, rows, rows[idx].start_date, rows[idx].end_date);
+  if (!userId || !rows.length || idx < 0 || idx >= rows.length) {
+    return { planIndex: -1, planId: null as string | null, plan: null as MealPlanState["plan"], selectedDay: null as string | null };
+  }
+  const row = rows[idx];
+  const plan = await loadPlanViewModel(userId, row);
+  return { planIndex: idx, planId: row.id, plan, selectedDay: defaultSelectedDay(row) };
 });
 
 export const createWeekPlan = createAsyncThunk("mealPlan/createWeekPlan", async (values: CreatePlanValues, { getState }) => {
@@ -231,5 +252,48 @@ const mealPlanSlice = createSlice({
 
 export const mealPlanActions = mealPlanSlice.actions;
 export const selectMealPlan = (state: RootState) => state.mealPlan;
+
+export const selectMealPlanFilteredPlan = createSelector([selectMealPlan], (s): MealPlanViewModel | null => {
+  const plan = s.plan;
+  if (!plan) return null;
+  if (s.viewMode === "week") return plan;
+  const day = s.selectedDay;
+  if (!day) return plan;
+  const existing = plan.days.find((d) => d.date === day);
+  const dayVm: MealPlanDay = existing ?? { date: day, weekday: weekdayFromISODate(day), meals: [] };
+  return { ...plan, days: [dayVm] };
+});
+
+export const selectMealPlanHeaderTitle = createSelector([selectMealPlan], (s) => {
+  if (s.viewMode === "day" && s.selectedDay) return formatDayTitle(s.selectedDay);
+  return s.plan?.title ?? s.cursorTitle;
+});
+
+export const navigateMealPlan = createAsyncThunk("mealPlan/navigate", async (delta: number, { dispatch, getState }) => {
+  const state = getState() as RootState;
+  const mp = state.mealPlan;
+  const todayIso = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  })();
+
+  if (mp.viewMode === "week") {
+    await dispatch(shiftWeek(delta));
+    return;
+  }
+
+  const base = mp.selectedDay ?? (todayIso >= mp.cursorStartIso && todayIso <= mp.cursorEndIso ? todayIso : mp.cursorStartIso);
+  const next = addDaysISO(base, delta);
+  if (next >= mp.cursorStartIso && next <= mp.cursorEndIso) {
+    dispatch(mealPlanActions.setSelectedDay(next));
+    return;
+  }
+  const weekDelta = delta < 0 ? -1 : 1;
+  await dispatch(shiftWeek(weekDelta));
+  dispatch(mealPlanActions.setSelectedDay(next));
+});
 
 export default mealPlanSlice.reducer;

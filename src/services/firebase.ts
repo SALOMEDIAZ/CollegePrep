@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { browserLocalPersistence, browserSessionPersistence, getAuth, inMemoryPersistence, setPersistence } from "firebase/auth";
 
 // VALORES POR DEFECTO DEL PROYECTO; PERMITE SOBRESCRIBIR CON .env (VITE_FIREBASE_*)
 const firebaseConfig = {
@@ -15,3 +15,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+
+const persistenceMode = String(import.meta.env.VITE_FIREBASE_PERSISTENCE ?? "session").toLowerCase();
+const persistence =
+  persistenceMode === "memory"
+    ? inMemoryPersistence
+    : persistenceMode === "local"
+      ? browserLocalPersistence
+      : browserSessionPersistence;
+
+void setPersistence(auth, persistence);
