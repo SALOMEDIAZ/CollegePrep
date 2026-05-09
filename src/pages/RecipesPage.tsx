@@ -1,13 +1,29 @@
 import { useEffect } from "react";
-import {searchMealsByFirstLetter,searchMealsByName,type MealDbMeal,} from "../services/api";
+import {
+  searchMealsByFirstLetter,
+  searchMealsByName,
+  type MealDbMeal,
+} from "../services/api";
 import RecipeCard from "../components/Recipes/RecipeCard";
 import "../styles/recipes.css";
-import {ensureProfileRow,fetchAllergyKeywords,} from "../services/profileService";
+import {
+  ensureProfileRow,
+  fetchAllergyKeywords,
+} from "../services/profileService";
 import type { ProfileRow } from "../types/profile";
 import { getSessionUserId } from "../services/authService";
 import { useAppDispatch, useAppSelector } from "../store/store";
-import {setMeals,setLoading,setError,setForbiddenKeywords,setSearchQuery,setSubmittedQuery,setProfile,} from "../store/slices/recipeSlice";
+import {
+  setMeals,
+  setLoading,
+  setError,
+  setForbiddenKeywords,
+  setSearchQuery,
+  setSubmittedQuery,
+  setProfile,
+} from "../store/slices/recipeSlice";
 
+// normaliza strings para comparar (sin tildes, minúsculas, etc)
 function norm(s: string) {
   return s
     .normalize("NFD")
@@ -20,6 +36,7 @@ function norm(s: string) {
     .trim();
 }
 
+// extrae todos los ingredientes de una receta
 function extractMealIngredientNames(meal: MealDbMeal) {
   const ingredients: string[] = [];
   for (let i = 1; i <= 20; i++) {
@@ -31,6 +48,7 @@ function extractMealIngredientNames(meal: MealDbMeal) {
   return ingredients;
 }
 
+// obtiene las restricciones dietéticas del perfil (vegan, gluten free, etc)
 function getDietRestrictions(profile: ProfileRow | null) {
   if (!profile) return [];
   const restrictions: string[] = [];
@@ -41,6 +59,7 @@ function getDietRestrictions(profile: ProfileRow | null) {
   return restrictions;
 }
 
+// si es vegetariano o vegano, obtengo las palabras clave para filtrar
 function getFallbackKeywords(dietRestrictions: string[]) {
   const isVegetarian =
     dietRestrictions.includes("vegan") ||
@@ -71,6 +90,7 @@ function getFallbackKeywords(dietRestrictions: string[]) {
     : meatKeywords;
 }
 
+// chequea si una palabra coincide con alguna palabra clave
 function matchesKeyword(text: string, keywords: string[]) {
   const normalized = norm(text);
   if (!normalized) return false;
@@ -79,6 +99,7 @@ function matchesKeyword(text: string, keywords: string[]) {
   );
 }
 
+// valida si una receta es permitida según alergias y restricciones
 function isMealAllowed(meal: MealDbMeal, forbiddenKeywords: string[]) {
   if (!forbiddenKeywords.length) return true;
 
@@ -90,22 +111,30 @@ function isMealAllowed(meal: MealDbMeal, forbiddenKeywords: string[]) {
   return !textToCheck.some((text) => matchesKeyword(text, forbiddenKeywords));
 }
 
+// página principal de recetas con búsqueda y filtros
 const RecipesPage = () => {
   const dispatch = useAppDispatch();
+  // estados del formulario de búsqueda
   const query = useAppSelector((state) => state.recipes.searchQuery);
   const submittedQuery = useAppSelector(
     (state) => state.recipes.submittedQuery,
   );
+  // estados de la carga
   const loading = useAppSelector((state) => state.recipes.loading);
   const error = useAppSelector((state) => state.recipes.error);
+  // recetas a mostrar
   const meals = useAppSelector((state) => state.recipes.meals);
+  // palabras que tengo que evitar (alergias, restricciones)
   const forbiddenKeywords = useAppSelector(
     (state) => state.recipes.forbiddenKeywords,
   );
+  // perfil del usuario con sus restricciones
   const profile = useAppSelector((state) => state.recipes.profile);
 
+  // sé si estoy en modo búsqueda o mostrando recetas aleatorias
   const isSearchMode = submittedQuery.trim().length > 0;
 
+  // cargo el perfil del usuario apenas carga la página
   useEffect(() => {
     let alive = true;
     const loadProfile = async () => {
@@ -120,6 +149,7 @@ const RecipesPage = () => {
     };
   }, [dispatch]);
 
+  // construyo la lista de palabras que tengo que filtrar según el perfil
   useEffect(() => {
     let alive = true;
     const buildKeywordsList = async () => {
@@ -155,6 +185,7 @@ const RecipesPage = () => {
     };
   }, [profile, dispatch]);
 
+  // cargo las recetas (busco si estoy buscando, o traigo aleatorias)
   useEffect(() => {
     let alive = true;
     const fetchRecipes = async () => {
@@ -163,6 +194,7 @@ const RecipesPage = () => {
         dispatch(setError(null));
 
         if (isSearchMode) {
+          // si estoy buscando, hago la búsqueda y filtro
           const results = await searchMealsByName(submittedQuery.trim());
           if (alive)
             dispatch(
@@ -173,11 +205,13 @@ const RecipesPage = () => {
           return;
         }
 
+        // si no estoy buscando, traigo recetas aleatorias
         const meals: MealDbMeal[] = [];
         const seenIds = new Set<string>();
         const alphabet = Array.from("abcdefghijklmnopqrstuvwxyz");
         const usedLetters = new Set<string>();
 
+        // hago varios intentos para conseguir 9 recetas
         for (let attempts = 0; attempts < 6 && meals.length < 9; attempts++) {
           const availableLetters = alphabet.filter((l) => !usedLetters.has(l));
           if (!availableLetters.length) break;
@@ -223,6 +257,7 @@ const RecipesPage = () => {
     };
   }, [isSearchMode, submittedQuery, forbiddenKeywords, dispatch]);
 
+  // manejo el submit del formulario de búsqueda
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     dispatch(setSubmittedQuery(query));
@@ -265,6 +300,7 @@ const RecipesPage = () => {
               </button>
             </div>
 
+            {/* formulario para buscar recetas */}
             <form
               onSubmit={onSubmit}
               className="recipes-search"
@@ -297,6 +333,7 @@ const RecipesPage = () => {
             <p className="recipes-status">No recipes match your preferences.</p>
           ) : null}
 
+          {/* grid con las recetas */}
           {meals.length ? (
             <div className="recipes-grid">
               {meals.map((m) => (

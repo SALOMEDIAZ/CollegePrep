@@ -9,14 +9,22 @@ import Landing from "../pages/LandingPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
 import SettingsPage from "../pages/SettingsPage.tsx";
 
+// aquí defino todas las rutas de la aplicación
 function AppRouter() {
   return (
-    <HashRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+    <HashRouter
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
       <Routes>
+        {/* landing es la página sin autenticación requerida */}
         <Route path="/" element={<Navigate to="/landing" replace />} />
         <Route path="/landing" element={<Landing />} />
+
+        {/* rutas de autenticación */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Signup />} />
+
+        {/* rutas protegidas (requieren estar logueado) */}
         <Route
           path="/profile"
           element={

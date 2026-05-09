@@ -15,20 +15,39 @@ import {
 import type { CreatePlanValues } from "../types/mealPlan";
 import "../styles/recipes.css";
 
-const CreatePlanModal = lazy(() => import("../components/MealPlan/CreatePlanModal"));
+const CreatePlanModal = lazy(
+  () => import("../components/MealPlan/CreatePlanModal"),
+);
 
+// página del planificador de comidas por semana
 const MealPlanPage = () => {
   const dispatch = useAppDispatch();
-  const { loading, error, plan, cursorStartIso, cursorEndIso, cursorTitle, viewMode, selectedDay, creating, deleting } =
-    useAppSelector(selectMealPlan);
+  // obtengo todos los datos del plan desde redux
+  const {
+    loading,
+    error,
+    plan,
+    cursorStartIso,
+    cursorEndIso,
+    cursorTitle,
+    viewMode,
+    selectedDay,
+    creating,
+    deleting,
+  } = useAppSelector(selectMealPlan);
+  // controlo si el modal de crear plan está abierto
   const [modalOpen, setModalOpen] = useState(false);
 
+  // cargo el plan la primera vez que carga la página
   useEffect(() => {
     dispatch(bootstrapMealPlan());
   }, [dispatch]);
 
+  // obtengo la versión filtrada del plan (por día si estoy en modo día)
   const filteredPlan = useAppSelector(selectMealPlanFilteredPlan);
   const headerTitle = useAppSelector(selectMealPlanHeaderTitle);
+
+  // calculo la fecha de hoy en formato ISO
   const todayIso = useMemo(() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -37,22 +56,41 @@ const MealPlanPage = () => {
     return `${y}-${m}-${day}`;
   }, []);
 
-  if (loading) return <div className="recipes-page"><div className="recipes-wrap"><p className="recipes-status">Loading…</p></div></div>;
+  // si estoy cargando, muestro un loading
+  if (loading)
+    return (
+      <div className="recipes-page">
+        <div className="recipes-wrap">
+          <p className="recipes-status">Loading…</p>
+        </div>
+      </div>
+    );
 
   return (
     <div className="recipes-page mp-page">
       <div className="recipes-wrap mp-wrap">
         {error ? <p className="recipes-error">{error}</p> : null}
 
+        {/* controles para navegar entre semanas */}
         <div className="mp-navRow">
-          <button type="button" className="mp-arrowBtn" onClick={() => dispatch(navigateMealPlan(-1))}>
+          <button
+            type="button"
+            className="mp-arrowBtn"
+            onClick={() => dispatch(navigateMealPlan(-1))}
+          >
             ‹
           </button>
           <div className="mp-navTitle">{headerTitle}</div>
-          <button type="button" className="mp-arrowBtn" onClick={() => dispatch(navigateMealPlan(1))}>
+          <button
+            type="button"
+            className="mp-arrowBtn"
+            onClick={() => dispatch(navigateMealPlan(1))}
+          >
             ›
           </button>
         </div>
+
+        {/* botones para cambiar entre vista de día y semana */}
         <div className="mp-segment">
           <button
             type="button"
@@ -60,7 +98,10 @@ const MealPlanPage = () => {
             onClick={() => {
               dispatch(mealPlanActions.setViewMode("day"));
               if (!selectedDay) {
-                const d = todayIso >= cursorStartIso && todayIso <= cursorEndIso ? todayIso : cursorStartIso;
+                const d =
+                  todayIso >= cursorStartIso && todayIso <= cursorEndIso
+                    ? todayIso
+                    : cursorStartIso;
                 dispatch(mealPlanActions.setSelectedDay(d));
               }
             }}
@@ -76,11 +117,18 @@ const MealPlanPage = () => {
           </button>
         </div>
 
-        {creating ? <div className="mp-creatingBanner">Creating plan…</div> : null}
+        {/* aviso cuando estoy creando un plan */}
+        {creating ? (
+          <div className="mp-creatingBanner">Creating plan…</div>
+        ) : null}
 
         {!plan ? (
           <div className="mp-empty">
-            <button type="button" className="mp-primaryBtn" onClick={() => setModalOpen(true)}>
+            <button
+              type="button"
+              className="mp-primaryBtn"
+              onClick={() => setModalOpen(true)}
+            >
               Create week plan
             </button>
           </div>

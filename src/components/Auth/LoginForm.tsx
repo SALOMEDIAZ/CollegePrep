@@ -6,18 +6,23 @@ import { setUser } from "../../store/slices/profileSlice";
 import { loginUser } from "../../services/authService";
 import { friendlyFirebaseAuthMessage } from "../../services/authErrors";
 
+// componente del formulario de login
 const LoginForm = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  // estados para el email y contraseña
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // controlo si está enviando el formulario
   const [loading, setLoading] = useState(false);
+  // mensaje de error si algo falla
   const [error, setError] = useState("");
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
+    // valido que los campos no estén vacíos
     if (!email || !password) {
       setError("Please enter your email and password.");
       return;
@@ -26,9 +31,9 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      // ESTO HACE LOGIN
+      // intento logear al usuario
       const user = await loginUser(email, password);
-      // ESTO GUARDA EN REDUX
+      // guardo en redux
       dispatch(setUser(user));
       navigate("/recipes");
     } catch (e) {

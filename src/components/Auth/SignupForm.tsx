@@ -7,15 +7,20 @@ import { registerUser } from "../../services/authService";
 import { friendlyFirebaseAuthMessage } from "../../services/authErrors";
 import { ensureProfileRow, upsertProfile } from "../../services/profileService";
 
+// componente para crear una cuenta nueva
 const SignupForm = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+
+  // estados del formulario
   const [fullName, setFullName] = useState("");
   const [university, setUniversity] = useState("");
   const [career, setCareer] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // estados para controlar el proceso
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -25,16 +30,19 @@ const SignupForm = () => {
     setError("");
     setSuccess("");
 
+    // valido que todos los campos obligatorios estén llenos
     if (!fullName || !email || !password || !confirmPassword) {
       setError("Please fill in all required fields.");
       return;
     }
 
+    // valido la contraseña
     if (password.length < 6) {
       setError("Password must be at least 6 characters long.");
       return;
     }
 
+    // me aseguro que las contraseñas coincidan
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -43,9 +51,12 @@ const SignupForm = () => {
     setLoading(true);
 
     try {
-      // REGISTRO EN FIREBASE
-      const user = await registerUser(email, password, { displayName: fullName });
-      // FILA BASE EN SUPABASE PARA DATOS EXTRA
+      // creo el usuario en firebase
+      const user = await registerUser(email, password, {
+        displayName: fullName,
+      });
+
+      // creo un registro en supabase para guardar datos extra
       const { profile, error: profErr } = await ensureProfileRow(user.id);
       if (!profErr && profile) {
         await upsertProfile(user.id, {
@@ -54,10 +65,15 @@ const SignupForm = () => {
           career,
         });
       }
-      // ESTO GUARDA EN REDUX
+
+      // guardo en redux
       dispatch(setUser(user));
-      setSuccess("Registration successful, please check your email and then log in.");
+      setSuccess(
+        "Registration successful, please check your email and then log in.",
+      );
       navigate("/recipes");
+
+      // limpio el formulario
       setFullName("");
       setUniversity("");
       setCareer("");
@@ -85,17 +101,31 @@ const SignupForm = () => {
 
       <div>
         <label htmlFor="university">University</label>
-        <input id="university" value={university} onChange={(e) => setUniversity(e.target.value)} />
+        <input
+          id="university"
+          value={university}
+          onChange={(e) => setUniversity(e.target.value)}
+        />
       </div>
 
       <div>
         <label htmlFor="career">Career</label>
-        <input id="career" value={career} onChange={(e) => setCareer(e.target.value)} />
+        <input
+          id="career"
+          value={career}
+          onChange={(e) => setCareer(e.target.value)}
+        />
       </div>
 
       <div>
         <label htmlFor="email">Email</label>
-        <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
       </div>
 
       <div>

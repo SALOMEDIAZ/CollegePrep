@@ -15,15 +15,15 @@ const profileSlice = createSlice({
   name: "profile",
   initialState,
   reducers: {
-    // ESTO GUARDA EN REDUX EL USUARIO ACTUAL
+    // guardo el usuario que acaba de loguearse
     setUser(state, action: PayloadAction<AppUser>) {
       state.user = action.payload;
     },
-    // ESTO LIMPIA USUARIO AL CERRAR SESION
+    // limpio el usuario cuando se cierra sesión
     clearUser(state) {
       state.user = null;
     },
-    // ESTO CONTROLA CARGA (PANTALLAS QUE LO NECESITEN)
+    // controlo el estado de carga para mostrar pantallas de loading
     setLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
     },

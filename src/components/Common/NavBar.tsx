@@ -2,10 +2,14 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import "./NavBar.css";
 
+// barra de navegación que aparece en todas las páginas autenticadas
 export const NavBar = () => {
+  // controlo si el menú móvil está abierto
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // abro o cierro el menú
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  // cierro el menú (cuando hago click en un link)
   const closeMenu = () => setIsMenuOpen(false);
 
   return (
@@ -24,6 +28,7 @@ export const NavBar = () => {
               className="navbar-logo"
             />
           </Link>
+          {/* menú de escritorio */}
           <nav className="nav-items-desktop">
             <Link to="/recipes" className="nav-item">
               Recipes
@@ -47,6 +52,7 @@ export const NavBar = () => {
               className="icon-image"
             />
           </Link>
+          {/* botón de hamburguesa para móvil */}
           <button
             className="hamburger"
             onClick={toggleMenu}
@@ -66,6 +72,7 @@ export const NavBar = () => {
         </div>
       </div>
 
+      {/* menú móvil que aparece cuando abro el hamburger */}
       {isMenuOpen && (
         <nav className="mobile-menu">
           <Link to="/recipes" className="nav-item" onClick={closeMenu}>
