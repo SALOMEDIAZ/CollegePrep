@@ -1,14 +1,7 @@
 import { useMemo, useState } from "react";
+import type { CreatePlanValues, MealType, Weekday } from "../../types/mealPlan";
 
-type MealType = "breakfast" | "lunch" | "dinner";
-type Weekday = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
-
-export type CreatePlanValues = {
-  budget: number;
-  onlySavedRecipes: boolean;
-  onlyNewRecipes: boolean;
-  selections: Record<Weekday, Record<MealType, boolean>>;
-};
+export type { CreatePlanValues } from "../../types/mealPlan";
 
 type CreatePlanModalProps = {
   open: boolean;
@@ -156,4 +149,3 @@ export default function CreatePlanModal(props: CreatePlanModalProps) {
     </div>
   );
 }
-

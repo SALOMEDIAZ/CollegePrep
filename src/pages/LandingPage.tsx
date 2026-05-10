@@ -1,13 +1,16 @@
 import { Link } from "react-router-dom";
 import "../styles/landing.css";
 
+// imagen del hero de la landing
 const asset = (f: string) => `/assets/main/${encodeURIComponent(f)}`;
 const LANDING_HERO =
   "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80";
 
+// página de landing (la que ven sin registrarse)
 export default function Landing() {
   return (
     <div className="landing-page-root landing-shell" data-theme="light">
+      {/* header con logo y botones de login/signup */}
       <header className="landing-header">
         <div className="landing-header-left">
           <Link to="/landing" className="landing-logo">
@@ -28,6 +31,7 @@ export default function Landing() {
         </div>
       </header>
 
+      {/* sección hero con el pitch principal */}
       <section className="landing-hero-wrap">
         <div className="landing-hero-inner">
           <div className="landing-hero-copy">
@@ -57,6 +61,7 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* sección de características */}
       <section className="landing-section" aria-labelledby="why-heading">
         <div className="landing-section-inner">
           <h2 id="why-heading" className="landing-section-title">
@@ -72,6 +77,7 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* sección about us */}
       <section className="landing-about" aria-labelledby="about-heading">
         <div className="landing-about-grid">
           <div className="landing-about-text-col">
@@ -95,6 +101,7 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* sección highlight */}
       <section
         className="landing-highlight"
         aria-labelledby="highlight-heading"
@@ -104,6 +111,7 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* call to action */}
       <section className="landing-cta-band">
         <div className="landing-cta-inner">
           <p className="landing-cta-line1">
@@ -119,6 +127,7 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* footer */}
       <footer className="landing-footer">
         <div className="landing-footer-inner">
           <aside className="landing-footer-aside">

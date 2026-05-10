@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "../pages/LoginPage.tsx";
 import Signup from "../pages/SignupPage.tsx";
 import Recipes from "../pages/RecipesPage.tsx";
@@ -8,16 +8,23 @@ import RequireAuth from "./RequireAuth.tsx";
 import Landing from "../pages/LandingPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
 import SettingsPage from "../pages/SettingsPage.tsx";
-import "./App.css";
 
+// aquí defino todas las rutas de la aplicación
 function AppRouter() {
   return (
-    <>
+    <HashRouter
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
       <Routes>
+        {/* landing es la página sin autenticación requerida */}
         <Route path="/" element={<Navigate to="/landing" replace />} />
         <Route path="/landing" element={<Landing />} />
+
+        {/* rutas de autenticación */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Signup />} />
+
+        {/* rutas protegidas (requieren estar logueado) */}
         <Route
           path="/profile"
           element={
@@ -59,7 +66,7 @@ function AppRouter() {
           }
         />
       </Routes>
-    </>
+    </HashRouter>
   );
 }
 

@@ -1,6 +1,7 @@
 import LoginForm from "../components/Auth/LoginForm";
 import "../styles/Auth.css";
 
+// página de login
 const LoginPage = () => {
   return (
     <main className="auth-page">

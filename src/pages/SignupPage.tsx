@@ -1,6 +1,7 @@
 import SignupForm from "../components/Auth/SignupForm";
 import "../styles/Auth.css";
 
+// página para crear una cuenta
 const SignupPage = () => {
   return (
     <main className="auth-page">
