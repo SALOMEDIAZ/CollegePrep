@@ -16,6 +16,17 @@ const INGREDIENT_INDEX_TTL_MS = 30 * 60 * 1000;
 let ingredientIndexCache: { index: IngredientIndex; atMs: number } | null = null;
 let ingredientIndexInFlight: Promise<IngredientIndex> | null = null;
 
+type ResolvedMealWithCost = {
+  recipeId: string;
+  recipeName: string;
+  recipeThumb: string | null;
+  cost: number;
+} | null;
+
+const RESOLVED_MEAL_TTL_MS = 60 * 60 * 1000;
+const resolvedMealCache = new Map<string, { atMs: number; value: ResolvedMealWithCost }>();
+const resolvedMealInFlight = new Map<string, Promise<ResolvedMealWithCost>>();
+
 function nowMs() {
   return Date.now();
 }
@@ -98,15 +109,35 @@ export async function computeMealCost(meal: MealDbMeal) {
 }
 
 export async function resolveMealWithCostUsingIndex(mealId: string, index: IngredientIndex) {
-  const m = await getMealById(mealId);
-  if (!m) return null;
-  const cost = computeMealCostWithIndex(m, index);
-  return {
-    recipeId: String(m.idMeal),
-    recipeName: String(m.strMeal ?? m.idMeal),
-    recipeThumb: m.strMealThumb ?? null,
-    cost,
-  };
+  const id = String(mealId ?? "").trim();
+  if (!id) return null;
+
+  const now = Date.now();
+  const cached = resolvedMealCache.get(id);
+  if (cached && now - cached.atMs <= RESOLVED_MEAL_TTL_MS) return cached.value;
+
+  const inFlight = resolvedMealInFlight.get(id);
+  if (inFlight) return await inFlight;
+
+  const p = (async () => {
+    const m = await getMealById(id);
+    if (!m) return null;
+    const cost = computeMealCostWithIndex(m, index);
+    return {
+      recipeId: String(m.idMeal),
+      recipeName: String(m.strMeal ?? m.idMeal),
+      recipeThumb: m.strMealThumb ?? null,
+      cost,
+    };
+  })();
+  resolvedMealInFlight.set(id, p);
+  try {
+    const value = await p;
+    resolvedMealCache.set(id, { atMs: Date.now(), value });
+    return value;
+  } finally {
+    resolvedMealInFlight.delete(id);
+  }
 }
 
 export async function resolveMealWithCost(mealId: string) {

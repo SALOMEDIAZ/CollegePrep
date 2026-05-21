@@ -475,7 +475,7 @@ export async function pickReplacementMeal(args: {
 
   const newPoolPromise = onlySavedRecipes
     ? Promise.resolve([] as MealDbMeal[])
-    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 30, effectiveExclude, Math.random);
+    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 18, effectiveExclude, Math.random);
   const ingredientIndexPromise = getIngredientIndex();
   const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
 
@@ -487,7 +487,9 @@ export async function pickReplacementMeal(args: {
   >();
   const maxAttempts = 80;
   for (let i = 0; i < maxAttempts; i++) {
-    const fromSaved = Boolean(onlySavedRecipes) || (!onlyNewRecipes && savedIdsArr.length > 0 && Math.random() < 0.4);
+    const canUseNew = !onlySavedRecipes && newPool.length > 0;
+    const canUseSaved = !onlyNewRecipes && savedIdsArr.length > 0;
+    const fromSaved = Boolean(onlySavedRecipes) || (canUseSaved && (!canUseNew || Math.random() < 0.2));
     if (fromSaved) {
       if (!savedIdsArr.length) continue;
       const id = String(savedIdsArr[Math.floor(Math.random() * savedIdsArr.length)] ?? "");
