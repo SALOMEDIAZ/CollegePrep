@@ -22,6 +22,8 @@ export type MealPlanViewModel = {
   days: MealPlanDay[];
 };
 
+export type ReplaceMealArgs = { date: string; mealType: MealType; recipeId: string };
+
 export type CreatePlanValues = {
   budget: number;
   onlySavedRecipes: boolean;
@@ -72,4 +74,6 @@ export type MealPlanState = {
   selectedDay: string | null;
   creating: boolean;
   deleting: boolean;
+  replacing: boolean;
+  replacingTarget: ReplaceMealArgs | null;
 };

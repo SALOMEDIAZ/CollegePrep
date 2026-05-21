@@ -17,7 +17,7 @@ import {
   shiftWeekStartIso,
 } from "../../services/mealPlanLogic";
 import type { RootState } from "../store";
-import type { CreatePlanValues, MealPlanDay, MealPlanState, MealPlanViewModel, Weekday } from "../../types/mealPlan";
+import type { CreatePlanValues, MealPlanDay, MealPlanState, MealPlanViewModel, ReplaceMealArgs, Weekday } from "../../types/mealPlan";
 
 export { addDaysISO, formatDayTitle } from "../../services/mealPlanLogic";
 
@@ -46,6 +46,8 @@ const initialState: MealPlanState = {
   selectedDay: null,
   creating: false,
   deleting: false,
+  replacing: false,
+  replacingTarget: null,
 };
 
 export const bootstrapMealPlan = createAsyncThunk("mealPlan/bootstrap", async () => {
@@ -127,7 +129,7 @@ export const deleteCurrentPlan = createAsyncThunk("mealPlan/deleteCurrentPlan", 
 
 export const replaceMeal = createAsyncThunk(
   "mealPlan/replaceMeal",
-  async (args: { date: string; mealType: "breakfast" | "lunch" | "dinner"; recipeId: string }, { getState }) => {
+  async (args: ReplaceMealArgs, { getState }) => {
     const state = getState() as RootState;
     const userId = state.mealPlan.userId;
     const planId = state.mealPlan.planId;
@@ -235,15 +237,21 @@ const mealPlanSlice = createSlice({
         state.deleting = false;
         state.error = action.error.message ?? "Failed to delete plan";
       })
-      .addCase(replaceMeal.pending, (state) => {
+      .addCase(replaceMeal.pending, (state, action) => {
         state.error = null;
+        state.replacing = true;
+        state.replacingTarget = action.meta.arg;
       })
       .addCase(replaceMeal.fulfilled, (state, action) => {
         state.error = null;
         state.plan = action.payload.plan;
+        state.replacing = false;
+        state.replacingTarget = null;
       })
       .addCase(replaceMeal.rejected, (state, action) => {
         state.error = action.error.message ?? "Failed to replace meal";
+        state.replacing = false;
+        state.replacingTarget = null;
       });
   },
 });

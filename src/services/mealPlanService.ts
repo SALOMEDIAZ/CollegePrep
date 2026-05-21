@@ -24,8 +24,6 @@ import {
   pickReplacementMeal,
 } from "./mealPlanLogic";
 
-const MEAL_PLAN_CACHE_PREFIX = "mealPlanCache:v1:";
-
 type MealPlanCachePayload = {
   v: 1;
   plan: MealPlanViewModel;
@@ -33,18 +31,10 @@ type MealPlanCachePayload = {
 };
 
 let mealPlanMealsTableStatus: "unknown" | "missing" | "present" = "unknown";
+let mealPlanDaysMealsColumnStatus: "unknown" | "meals" | "meals_json" | "missing" = "unknown";
 
-function canUseLocalStorage() {
-  try {
-    return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-  } catch {
-    return false;
-  }
-}
-
-function cacheKey(planId: string) {
-  return `${MEAL_PLAN_CACHE_PREFIX}${planId}`;
-}
+const PLAN_MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const planMemoryCache = new Map<string, { payload: MealPlanCachePayload; atMs: number }>();
 
 function budgetToNumber(v: unknown) {
   const n = Number(v ?? 0);
@@ -63,14 +53,17 @@ function deriveMetaFromPlan(plan: MealPlanViewModel) {
 }
 
 function readCachedPlan(row: Pick<MealPlanRow, "id" | "start_date" | "end_date" | "budget">): MealPlanViewModel | null {
-  if (!canUseLocalStorage()) return null;
   try {
-    const raw = window.localStorage.getItem(cacheKey(String(row.id)));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<MealPlanCachePayload> | null;
+    const entry = planMemoryCache.get(String(row.id));
+    if (!entry) return null;
+    if (Date.now() - entry.atMs > PLAN_MEMORY_CACHE_TTL_MS) {
+      planMemoryCache.delete(String(row.id));
+      return null;
+    }
+    const parsed = entry.payload;
     if (!parsed || parsed.v !== 1 || !parsed.plan) return null;
-    const plan = parsed.plan as MealPlanViewModel;
-    if (!Array.isArray((plan as MealPlanViewModel).days)) return null;
+    const plan = parsed.plan;
+    if (!Array.isArray(plan.days)) return null;
 
     const meta = parsed.meta ?? null;
     if (meta) {
@@ -87,19 +80,17 @@ function readCachedPlan(row: Pick<MealPlanRow, "id" | "start_date" | "end_date" 
 }
 
 function writeCachedPlan(args: { planId: string; plan: MealPlanViewModel; meta?: MealPlanCachePayload["meta"] }) {
-  if (!canUseLocalStorage()) return;
   try {
     const payload: MealPlanCachePayload = { v: 1, plan: args.plan, meta: args.meta };
-    window.localStorage.setItem(cacheKey(args.planId), JSON.stringify(payload));
+    planMemoryCache.set(String(args.planId), { payload, atMs: Date.now() });
   } catch {
     return;
   }
 }
 
 function removeCachedPlan(planId: string) {
-  if (!canUseLocalStorage()) return;
   try {
-    window.localStorage.removeItem(cacheKey(planId));
+    planMemoryCache.delete(String(planId));
   } catch {
     return;
   }
@@ -124,9 +115,19 @@ function isMissingMealPlanMealsTableError(err: unknown) {
     msg.includes("schema cache") ||
     msg.includes("Could not find the table") ||
     msg.includes("does not exist") ||
-    msg.includes("relation") ||
-    msg.includes("column")
+    msg.includes("relation")
   );
+}
+
+function isMissingColumnError(err: unknown, columnName: string) {
+  const msg = String((err as { message?: unknown })?.message ?? err);
+  const lower = msg.toLowerCase();
+  const col = columnName.toLowerCase();
+  const escaped = col.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const colAsToken = new RegExp(`(^|[^a-z0-9_])${escaped}($|[^a-z0-9_])`, "i");
+  const mentionsColumn = lower.includes("column") && (lower.includes(`.${col}`) || lower.includes(`"${col}"`) || lower.includes(`'${col}'`) || colAsToken.test(lower));
+  const mentionsMissing = lower.includes("schema cache") || lower.includes("does not exist");
+  return Boolean(mentionsColumn && mentionsMissing);
 }
 
 function weekdayFromISODate(iso: string): Weekday {
@@ -281,30 +282,50 @@ async function removePersistedMeals(planId: string) {
   }
 }
 
-async function persistMealsOnDaysTable(planId: string, plan: MealPlanViewModel) {
+async function ensureMealPlanDaysMealsColumnStatus(planId: string) {
+  if (mealPlanDaysMealsColumnStatus !== "unknown") return mealPlanDaysMealsColumnStatus;
   try {
-    for (const d of plan.days) {
-      const { error } = await supabase.from("meal_plan_days").update({ meals: d.meals }).eq("meal_plan_id", planId).eq("date", d.date);
-      if (!error) continue;
-      const { error: error2 } = await supabase
-        .from("meal_plan_days")
-        .update({ meals_json: d.meals })
-        .eq("meal_plan_id", planId)
-        .eq("date", d.date);
-      if (error2) return;
+    const { error } = await supabase.from("meal_plan_days").select("meals").eq("meal_plan_id", planId).limit(1);
+    if (error) throw error;
+    mealPlanDaysMealsColumnStatus = "meals";
+    return mealPlanDaysMealsColumnStatus;
+  } catch (e) {
+    if (!isMissingColumnError(e, "meals")) throw e;
+    const { error } = await supabase.from("meal_plan_days").select("meals_json").eq("meal_plan_id", planId).limit(1);
+    if (!error) {
+      mealPlanDaysMealsColumnStatus = "meals_json";
+      return mealPlanDaysMealsColumnStatus;
     }
-  } catch {
-    return;
+    if (isMissingColumnError(error, "meals_json")) {
+      mealPlanDaysMealsColumnStatus = "missing";
+      return mealPlanDaysMealsColumnStatus;
+    }
+    throw error;
+  }
+}
+
+async function persistMealsOnDaysTable(planId: string, plan: MealPlanViewModel) {
+  const status = await ensureMealPlanDaysMealsColumnStatus(planId);
+  if (status === "missing") return;
+
+  for (const d of plan.days) {
+    const payload = status === "meals" ? { meals: d.meals } : { meals_json: d.meals };
+    const { error } = await supabase.from("meal_plan_days").update(payload).eq("meal_plan_id", planId).eq("date", d.date);
+    if (error) {
+      const msg = String((error as { message?: unknown })?.message ?? error);
+      throw new Error(`Could not persist meal plan meals to Supabase. ${msg}`);
+    }
   }
 }
 
 async function updateOneMealOnDaysTable(planId: string, date: string, nextMeals: MealPlanMeal[]) {
-  try {
-    const { error } = await supabase.from("meal_plan_days").update({ meals: nextMeals }).eq("meal_plan_id", planId).eq("date", date);
-    if (!error) return;
-    await supabase.from("meal_plan_days").update({ meals_json: nextMeals }).eq("meal_plan_id", planId).eq("date", date);
-  } catch {
-    return;
+  const status = await ensureMealPlanDaysMealsColumnStatus(planId);
+  if (status === "missing") return;
+  const payload = status === "meals" ? { meals: nextMeals } : { meals_json: nextMeals };
+  const { error } = await supabase.from("meal_plan_days").update(payload).eq("meal_plan_id", planId).eq("date", date);
+  if (error) {
+    const msg = String((error as { message?: unknown })?.message ?? error);
+    throw new Error(`Could not persist meal replacement to Supabase. ${msg}`);
   }
 }
 
@@ -345,18 +366,39 @@ async function buildAvoidSetsForProfile(profile: Awaited<ReturnType<typeof ensur
 }
 
 async function fetchMealPlanDays(planId: string) {
-  try {
+  if (mealPlanDaysMealsColumnStatus === "meals") {
     const { data, error } = await supabase.from("meal_plan_days").select("date,weekday,meals").eq("meal_plan_id", planId);
     if (error) throw error;
     return (data ?? []) as MealPlanDayRow[];
-  } catch {
+  }
+  if (mealPlanDaysMealsColumnStatus === "meals_json") {
+    const { data, error } = await supabase.from("meal_plan_days").select("date,weekday,meals_json").eq("meal_plan_id", planId);
+    if (error) throw error;
+    return (data ?? []) as MealPlanDayRow[];
+  }
+  if (mealPlanDaysMealsColumnStatus === "missing") {
+    const { data, error } = await supabase.from("meal_plan_days").select("date,weekday").eq("meal_plan_id", planId);
+    if (error) throw error;
+    return (data ?? []) as MealPlanDayRow[];
+  }
+
+  try {
+    const { data, error } = await supabase.from("meal_plan_days").select("date,weekday,meals").eq("meal_plan_id", planId);
+    if (error) throw error;
+    mealPlanDaysMealsColumnStatus = "meals";
+    return (data ?? []) as MealPlanDayRow[];
+  } catch (e) {
+    if (!isMissingColumnError(e, "meals")) throw e;
     try {
       const { data, error } = await supabase.from("meal_plan_days").select("date,weekday,meals_json").eq("meal_plan_id", planId);
       if (error) throw error;
+      mealPlanDaysMealsColumnStatus = "meals_json";
       return (data ?? []) as MealPlanDayRow[];
-    } catch {
+    } catch (e2) {
+      if (!isMissingColumnError(e2, "meals_json")) throw e2;
       const { data, error } = await supabase.from("meal_plan_days").select("date,weekday").eq("meal_plan_id", planId);
       if (error) throw error;
+      mealPlanDaysMealsColumnStatus = "missing";
       return (data ?? []) as MealPlanDayRow[];
     }
   }
@@ -513,23 +555,38 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
   const planId = String(insertedRow?.id ?? "");
   if (!insertedRow || !planId) throw new Error("Failed to create meal plan");
 
-  const rangeStart = fromISODate(planStartIso);
-  const rangeEnd = fromISODate(cursorWeek.endIso);
-  await insertMealPlanDays(planId, values, rangeStart, rangeEnd);
-  const savedIdsArr = await fetchSavedRecipeIds(profileId);
-  const avoid = await buildAvoidSetsForProfile(profile);
-  const vm = await buildMealsForSlots({
-    values,
-    savedIdsArr,
-    weekTitle: planTitleForRow(insertedRow),
-    rangeStart,
-    rangeEnd,
-    avoid,
-    seed: planId,
-  });
-  await persistMeals(planId, vm);
-  await persistMealsOnDaysTable(planId, vm);
-  writeCachedPlan({ planId, plan: vm, meta: deriveMetaFromRow(insertedRow) });
+  let vm: MealPlanViewModel;
+  try {
+    const rangeStart = fromISODate(planStartIso);
+    const rangeEnd = fromISODate(cursorWeek.endIso);
+    await insertMealPlanDays(planId, values, rangeStart, rangeEnd);
+    const savedIdsArr = await fetchSavedRecipeIds(profileId);
+    const avoid = await buildAvoidSetsForProfile(profile);
+    vm = await buildMealsForSlots({
+      values,
+      savedIdsArr,
+      weekTitle: planTitleForRow(insertedRow),
+      rangeStart,
+      rangeEnd,
+      avoid,
+      seed: planId,
+    });
+    await persistMealsOnDaysTable(planId, vm);
+    await persistMeals(planId, vm);
+    writeCachedPlan({ planId, plan: vm, meta: deriveMetaFromRow(insertedRow) });
+  } catch (e) {
+    try {
+      await supabase.from("meal_plan_days").delete().eq("meal_plan_id", planId);
+    } catch {
+      void 0;
+    }
+    try {
+      await supabase.from("meal_plans").delete().eq("id", planId).eq("user_id", profileId);
+    } catch {
+      void 0;
+    }
+    throw e;
+  }
 
   const merged = existingPlans.concat(insertedRow).sort((a, b) => a.start_date.localeCompare(b.start_date));
   const planIndex = merged.findIndex((r) => r.id === planId);

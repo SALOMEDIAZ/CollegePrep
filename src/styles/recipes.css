@@ -1102,6 +1102,21 @@
   cursor: pointer;
 }
 
+.mp-changeBtn--busy {
+  width: auto;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mp-changeBtnText {
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .mp-changeBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

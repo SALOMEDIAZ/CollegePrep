@@ -38,9 +38,9 @@ export default function SettingsPage() {
   const nav = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const dlgRef = useRef<HTMLDialogElement>(null);
-  const [user, setUserLocal] = useState<AppUser | null>(null);
+  const user: AppUser | null = reduxUser;
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => reduxUser?.email || "");
   const [username, setUsername] = useState("");
   const [age, setAge] = useState("");
   const [location, setLocation] = useState("");
@@ -67,14 +67,9 @@ export default function SettingsPage() {
   const [saveNotice, setSaveNotice] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
 
   useEffect(() => {
-    if (!reduxUser) return;
-    setUserLocal(reduxUser);
-    setEmail(reduxUser.email || "");
-  }, [reduxUser]);
-
-  useEffect(() => {
     async function load() {
       if (!reduxUser) return;
+      setEmail(reduxUser.email || "");
       const { profile: p, error } = await ensureProfileRow(reduxUser.id);
       if (error || !p) {
         console.error(error);
@@ -170,7 +165,7 @@ export default function SettingsPage() {
       const refreshed = auth.currentUser;
       if (refreshed) {
         dispatch(setUser(firebaseUserToAppUser(refreshed)));
-        setUserLocal(firebaseUserToAppUser(refreshed));
+        setEmail(refreshed.email || "");
       }
     }
 

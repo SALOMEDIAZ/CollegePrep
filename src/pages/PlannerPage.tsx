@@ -34,6 +34,8 @@ const MealPlanPage = () => {
     selectedDay,
     creating,
     deleting,
+    replacing,
+    replacingTarget,
   } = useAppSelector(selectMealPlan);
   // controlo si el modal de crear plan está abierto
   const [modalOpen, setModalOpen] = useState(false);
@@ -136,6 +138,7 @@ const MealPlanPage = () => {
           <div>
             <MealPlan
               plan={filteredPlan}
+              replacingTarget={replacing ? replacingTarget : null}
               onReplaceMeal={(args) => {
                 dispatch(replaceMeal(args));
               }}
@@ -144,7 +147,7 @@ const MealPlanPage = () => {
               <button
                 type="button"
                 className="mp-dangerBtn"
-                disabled={creating || deleting}
+                disabled={creating || deleting || replacing}
                 onClick={() => dispatch(deleteCurrentPlan())}
               >
                 Delete plan

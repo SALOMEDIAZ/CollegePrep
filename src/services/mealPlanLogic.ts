@@ -9,7 +9,7 @@ import type {
   MealType,
   Weekday,
 } from "../types/mealPlan";
-import { getIngredientIndex, resolveMealWithCostUsingIndex } from "./ingredientPricing";
+import { computeMealCostWithIndex, getIngredientIndex, resolveMealWithCostUsingIndex } from "./ingredientPricing";
 
 function startOfWeekMonday(d: Date) {
   const x = new Date(d);
@@ -297,7 +297,7 @@ async function buildNewRecipePool(
 ) {
   const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
   const pickedLetters = new Set<string>();
-  const pool: string[] = [];
+  const pool: MealDbMeal[] = [];
   const seen = new Set<string>();
 
   for (let round = 0; round < 10 && pool.length < minCount; round++) {
@@ -320,7 +320,7 @@ async function buildNewRecipePool(
         if (seen.has(id)) continue;
         if (!mealAllowedWithSets(m, allergyAvoid, dietAvoid)) continue;
         seen.add(id);
-        pool.push(id);
+        pool.push(m);
         if (pool.length >= minCount) break;
       }
       if (pool.length >= minCount) break;
@@ -363,7 +363,7 @@ export async function buildMealsForSlots(args: {
   const rng = makeRng(seed);
   const savedIds = new Set(savedIdsArr);
   const newPoolPromise = values.onlySavedRecipes
-    ? Promise.resolve([] as string[])
+    ? Promise.resolve([] as MealDbMeal[])
     : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 70, values.onlyNewRecipes ? savedIds : new Set<string>(), rng);
   const ingredientIndexPromise = getIngredientIndex();
   const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
@@ -371,6 +371,7 @@ export async function buildMealsForSlots(args: {
   const slots = buildSelectedSlots(values, rangeStart, rangeEnd);
   const usedRecipes = new Set<string>();
   const triedRecipes = new Set<string>();
+  const computedNewCost = new Map<string, number>();
   const resolvedCache = new Map<
     string,
     Awaited<ReturnType<typeof resolveMealWithCostUsingIndex>> | undefined
@@ -381,23 +382,47 @@ export async function buildMealsForSlots(args: {
     const maxAttempts = 45;
     for (let i = 0; i < maxAttempts; i++) {
       const fromSaved = values.onlySavedRecipes || (!values.onlyNewRecipes && savedIdsArr.length > 0 && rng() < 0.4);
-      const source = fromSaved ? savedIdsArr : newPool;
-      if (!source.length) continue;
-      const id = String(source[Math.floor(rng() * source.length)] ?? "");
+      if (fromSaved) {
+        if (!savedIdsArr.length) continue;
+        const id = String(savedIdsArr[Math.floor(rng() * savedIdsArr.length)] ?? "");
+        if (!id) continue;
+        if (usedRecipes.has(id)) continue;
+        if (triedRecipes.has(id)) continue;
+        triedRecipes.add(id);
+        const cached = resolvedCache.get(id);
+        const resolved = cached !== undefined ? cached : await resolveMealWithCostUsingIndex(id, ingredientIndex);
+        if (cached === undefined) resolvedCache.set(id, resolved ?? null);
+        if (!resolved) continue;
+        const c = Number(resolved.cost ?? 0);
+        if (!Number.isFinite(c) || c <= 0) continue;
+        if (c > remaining) continue;
+        usedRecipes.add(id);
+        remaining -= c;
+        return resolved;
+      }
+
+      if (!newPool.length) continue;
+      const meal = newPool[Math.floor(rng() * newPool.length)];
+      const id = String(meal?.idMeal ?? "");
       if (!id) continue;
       if (usedRecipes.has(id)) continue;
       if (triedRecipes.has(id)) continue;
       triedRecipes.add(id);
-      const cached = resolvedCache.get(id);
-      const resolved = cached !== undefined ? cached : await resolveMealWithCostUsingIndex(id, ingredientIndex);
-      if (cached === undefined) resolvedCache.set(id, resolved ?? null);
-      if (!resolved) continue;
-      const c = Number(resolved.cost ?? 0);
-      if (!Number.isFinite(c) || c <= 0) continue;
-      if (c > remaining) continue;
+
+      const cachedCost = computedNewCost.get(id);
+      const cost = cachedCost !== undefined ? cachedCost : computeMealCostWithIndex(meal, ingredientIndex);
+      if (cachedCost === undefined) computedNewCost.set(id, cost);
+      if (!Number.isFinite(cost) || cost <= 0) continue;
+      if (cost > remaining) continue;
+
       usedRecipes.add(id);
-      remaining -= c;
-      return resolved;
+      remaining -= cost;
+      return {
+        recipeId: id,
+        recipeName: String(meal.strMeal ?? id),
+        recipeThumb: meal.strMealThumb ?? null,
+        cost,
+      };
     }
     return null;
   }
@@ -442,12 +467,13 @@ export async function pickReplacementMeal(args: {
   if (onlyNewRecipes) for (const id of savedIds) effectiveExclude.add(id);
 
   const newPoolPromise = onlySavedRecipes
-    ? Promise.resolve([] as string[])
+    ? Promise.resolve([] as MealDbMeal[])
     : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 50, effectiveExclude, Math.random);
   const ingredientIndexPromise = getIngredientIndex();
   const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
 
   const tried = new Set<string>();
+  const computedNewCost = new Map<string, number>();
   const resolvedCache = new Map<
     string,
     Awaited<ReturnType<typeof resolveMealWithCostUsingIndex>> | undefined
@@ -455,21 +481,43 @@ export async function pickReplacementMeal(args: {
   const maxAttempts = 80;
   for (let i = 0; i < maxAttempts; i++) {
     const fromSaved = Boolean(onlySavedRecipes) || (!onlyNewRecipes && savedIdsArr.length > 0 && Math.random() < 0.4);
-    const source = fromSaved ? savedIdsArr : newPool;
-    if (!source.length) continue;
-    const id = String(source[Math.floor(Math.random() * source.length)] ?? "");
+    if (fromSaved) {
+      if (!savedIdsArr.length) continue;
+      const id = String(savedIdsArr[Math.floor(Math.random() * savedIdsArr.length)] ?? "");
+      if (!id) continue;
+      if (effectiveExclude.has(id)) continue;
+      if (tried.has(id)) continue;
+      tried.add(id);
+      const cached = resolvedCache.get(id);
+      const resolved = cached !== undefined ? cached : await resolveMealWithCostUsingIndex(id, ingredientIndex);
+      if (cached === undefined) resolvedCache.set(id, resolved ?? null);
+      if (!resolved) continue;
+      const c = Number(resolved.cost ?? 0);
+      if (!Number.isFinite(c) || c <= 0) continue;
+      if (c > availableBudget) continue;
+      return resolved;
+    }
+
+    if (!newPool.length) continue;
+    const meal = newPool[Math.floor(Math.random() * newPool.length)];
+    const id = String(meal?.idMeal ?? "");
     if (!id) continue;
     if (effectiveExclude.has(id)) continue;
     if (tried.has(id)) continue;
     tried.add(id);
-    const cached = resolvedCache.get(id);
-    const resolved = cached !== undefined ? cached : await resolveMealWithCostUsingIndex(id, ingredientIndex);
-    if (cached === undefined) resolvedCache.set(id, resolved ?? null);
-    if (!resolved) continue;
-    const c = Number(resolved.cost ?? 0);
-    if (!Number.isFinite(c) || c <= 0) continue;
-    if (c > availableBudget) continue;
-    return resolved;
+
+    const cachedCost = computedNewCost.get(id);
+    const cost = cachedCost !== undefined ? cachedCost : computeMealCostWithIndex(meal, ingredientIndex);
+    if (cachedCost === undefined) computedNewCost.set(id, cost);
+    if (!Number.isFinite(cost) || cost <= 0) continue;
+    if (cost > availableBudget) continue;
+
+    return {
+      recipeId: id,
+      recipeName: String(meal.strMeal ?? id),
+      recipeThumb: meal.strMealThumb ?? null,
+      cost,
+    };
   }
 
   return null;

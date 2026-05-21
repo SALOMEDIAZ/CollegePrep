@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import type { MealPlanViewModel, MealType } from "../../types/mealPlan";
+import type { MealPlanViewModel, MealType, ReplaceMealArgs } from "../../types/mealPlan";
 
 export type { MealPlanDay, MealPlanMeal, MealPlanViewModel, MealType, Weekday } from "../../types/mealPlan";
 
@@ -46,9 +46,11 @@ function toThumbPreviewUrl(url: string) {
 
 export default function MealPlan({
   plan,
+  replacingTarget,
   onReplaceMeal,
 }: {
   plan: MealPlanViewModel;
+  replacingTarget?: ReplaceMealArgs | null;
   onReplaceMeal?: (args: { date: string; mealType: MealType; recipeId: string }) => void;
 }) {
   const pct = plan.budget > 0 ? Math.min(100, Math.round((plan.used / plan.budget) * 100)) : 0;
@@ -101,23 +103,50 @@ export default function MealPlan({
                       <div className="mp-mealCost">${fmtCop(m.cost)}</div>
                     </div>
                     <div className="mp-mealActions">
-                      <Link className="mp-seeRecipeBtn" to={`/recipes/${m.recipeId}`}>
-                        See recipe
-                      </Link>
+                      {replacingTarget &&
+                      replacingTarget.date === d.date &&
+                      replacingTarget.mealType === m.mealType &&
+                      replacingTarget.recipeId === m.recipeId ? null : (
+                        <Link className="mp-seeRecipeBtn" to={`/recipes/${m.recipeId}`}>
+                          See recipe
+                        </Link>
+                      )}
                       {onReplaceMeal ? (
                         <button
                           type="button"
-                          className="mp-changeBtn"
+                          className={`mp-changeBtn ${
+                            replacingTarget &&
+                            replacingTarget.date === d.date &&
+                            replacingTarget.mealType === m.mealType &&
+                            replacingTarget.recipeId === m.recipeId
+                              ? "mp-changeBtn--busy"
+                              : ""
+                          }`}
+                          disabled={
+                            !!(
+                              replacingTarget &&
+                              replacingTarget.date === d.date &&
+                              replacingTarget.mealType === m.mealType &&
+                              replacingTarget.recipeId === m.recipeId
+                            )
+                          }
                           onClick={() => onReplaceMeal({ date: d.date, mealType: m.mealType, recipeId: m.recipeId })}
                           aria-label="Change recipe"
                           title="Change recipe"
                         >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" className="mp-changeIcon">
-                            <path d="M6 9a7 7 0 0 1 12.1-4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M18 4v4h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M18 15a7 7 0 0 1-12.1 4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M6 20v-4h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          {replacingTarget &&
+                          replacingTarget.date === d.date &&
+                          replacingTarget.mealType === m.mealType &&
+                          replacingTarget.recipeId === m.recipeId ? (
+                            <span className="mp-changeBtnText">Changing recipe</span>
+                          ) : (
+                            <svg viewBox="0 0 24 24" aria-hidden="true" className="mp-changeIcon">
+                              <path d="M6 9a7 7 0 0 1 12.1-4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                              <path d="M18 4v4h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M18 15a7 7 0 0 1-12.1 4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                              <path d="M6 20v-4h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
                         </button>
                       ) : null}
                     </div>
@@ -173,23 +202,50 @@ export default function MealPlan({
                                   <div className="mp-mealCost">{fmtCop(m.cost)}</div>
                                 </div>
                                 <div className="mp-mealActions">
-                                  <Link className="mp-seeRecipeBtn" to={`/recipes/${m.recipeId}`}>
-                                    See recipe
-                                  </Link>
+                                  {replacingTarget &&
+                                  replacingTarget.date === d.date &&
+                                  replacingTarget.mealType === m.mealType &&
+                                  replacingTarget.recipeId === m.recipeId ? null : (
+                                    <Link className="mp-seeRecipeBtn" to={`/recipes/${m.recipeId}`}>
+                                      See recipe
+                                    </Link>
+                                  )}
                                   {onReplaceMeal ? (
                                     <button
                                       type="button"
-                                      className="mp-changeBtn"
+                                      className={`mp-changeBtn ${
+                                        replacingTarget &&
+                                        replacingTarget.date === d.date &&
+                                        replacingTarget.mealType === m.mealType &&
+                                        replacingTarget.recipeId === m.recipeId
+                                          ? "mp-changeBtn--busy"
+                                          : ""
+                                      }`}
+                                      disabled={
+                                        !!(
+                                          replacingTarget &&
+                                          replacingTarget.date === d.date &&
+                                          replacingTarget.mealType === m.mealType &&
+                                          replacingTarget.recipeId === m.recipeId
+                                        )
+                                      }
                                       onClick={() => onReplaceMeal({ date: d.date, mealType: m.mealType, recipeId: m.recipeId })}
                                       aria-label="Change recipe"
                                       title="Change recipe"
                                     >
-                                      <svg viewBox="0 0 24 24" aria-hidden="true" className="mp-changeIcon">
-                                        <path d="M6 9a7 7 0 0 1 12.1-4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                        <path d="M18 4v4h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        <path d="M18 15a7 7 0 0 1-12.1 4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                        <path d="M6 20v-4h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                      </svg>
+                                      {replacingTarget &&
+                                      replacingTarget.date === d.date &&
+                                      replacingTarget.mealType === m.mealType &&
+                                      replacingTarget.recipeId === m.recipeId ? (
+                                        <span className="mp-changeBtnText">Changing recipe</span>
+                                      ) : (
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" className="mp-changeIcon">
+                                          <path d="M6 9a7 7 0 0 1 12.1-4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                          <path d="M18 4v4h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                          <path d="M18 15a7 7 0 0 1-12.1 4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                          <path d="M6 20v-4h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                      )}
                                     </button>
                                   ) : null}
                                 </div>
