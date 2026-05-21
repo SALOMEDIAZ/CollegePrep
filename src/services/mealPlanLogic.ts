@@ -362,13 +362,20 @@ export async function buildMealsForSlots(args: {
   const { values, savedIdsArr, weekTitle, rangeStart, rangeEnd, avoid, seed } = args;
   const rng = makeRng(seed);
   const savedIds = new Set(savedIdsArr);
+  const slots = buildSelectedSlots(values, rangeStart, rangeEnd);
+  const poolTarget = Math.min(70, Math.max(24, slots.length * 3));
   const newPoolPromise = values.onlySavedRecipes
     ? Promise.resolve([] as MealDbMeal[])
-    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 70, values.onlyNewRecipes ? savedIds : new Set<string>(), rng);
+    : buildNewRecipePool(
+        avoid.allergyAvoid,
+        avoid.dietAvoid,
+        poolTarget,
+        values.onlyNewRecipes ? savedIds : new Set<string>(),
+        rng,
+      );
   const ingredientIndexPromise = getIngredientIndex();
   const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
 
-  const slots = buildSelectedSlots(values, rangeStart, rangeEnd);
   const usedRecipes = new Set<string>();
   const triedRecipes = new Set<string>();
   const computedNewCost = new Map<string, number>();
@@ -468,7 +475,7 @@ export async function pickReplacementMeal(args: {
 
   const newPoolPromise = onlySavedRecipes
     ? Promise.resolve([] as MealDbMeal[])
-    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 50, effectiveExclude, Math.random);
+    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 30, effectiveExclude, Math.random);
   const ingredientIndexPromise = getIngredientIndex();
   const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
 

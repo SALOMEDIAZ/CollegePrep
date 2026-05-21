@@ -498,15 +498,27 @@ async function fetchSavedRecipeIds(dbUserId: string) {
   return rows.map((r) => String(r.recipe_id ?? "")).filter(Boolean);
 }
 
-async function insertMealPlanDays(planId: string, values: CreatePlanValues, rangeStart: Date, rangeEnd: Date) {
-  const daysRows: Array<{ meal_plan_id: string; date: string; weekday: string }> = [];
+async function insertMealPlanDays(
+  planId: string,
+  values: CreatePlanValues,
+  rangeStart: Date,
+  rangeEnd: Date,
+  mealsByDate?: Map<string, MealPlanMeal[]>,
+  mealsColumn?: "meals" | "meals_json" | null,
+) {
+  const daysRows: Array<Record<string, unknown>> = [];
   const days = Math.max(0, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (24 * 60 * 60 * 1000)));
   for (let i = 0; i <= days; i++) {
     const d = addDays(rangeStart, i);
     const wd = weekdayFromDate(d);
     const anySelected = Object.values(values.selections[wd]).some(Boolean);
     if (!anySelected) continue;
-    daysRows.push({ meal_plan_id: planId, date: toISODate(d), weekday: wd });
+    const date = toISODate(d);
+    const row: Record<string, unknown> = { meal_plan_id: planId, date, weekday: wd };
+    if (mealsColumn) {
+      row[mealsColumn] = mealsByDate?.get(date) ?? [];
+    }
+    daysRows.push(row);
   }
   if (!daysRows.length) return;
   const { error: daysErr } = await supabase.from("meal_plan_days").insert(daysRows);
@@ -558,7 +570,6 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
   try {
     const rangeStart = fromISODate(planStartIso);
     const rangeEnd = fromISODate(cursorWeek.endIso);
-    await insertMealPlanDays(planId, values, rangeStart, rangeEnd);
     const savedIdsArr = await fetchSavedRecipeIds(profileId);
     const avoid = await buildAvoidSetsForProfile(profile);
     vm = await buildMealsForSlots({
@@ -571,9 +582,22 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
       seed: planId,
     });
     const persistedToMealsTable = await persistMeals(planId, vm);
-    if (!persistedToMealsTable) {
-      await persistMealsOnDaysTable(planId, vm);
+    const mealsByDate = new Map<string, MealPlanMeal[]>();
+    for (const d of vm.days) mealsByDate.set(d.date, d.meals);
+    const mealsColumn = persistedToMealsTable ? null : await ensureMealPlanDaysMealsColumnStatus(planId);
+    if (!persistedToMealsTable && mealsColumn === "missing") {
+      throw new Error(
+        "Meal plan meals are not being persisted in Supabase. Either add a jsonb column (meals or meals_json) to meal_plan_days, or create a meal_plan_meals table (and allow writes via RLS).",
+      );
     }
+    await insertMealPlanDays(
+      planId,
+      values,
+      rangeStart,
+      rangeEnd,
+      mealsByDate,
+      mealsColumn === "meals" || mealsColumn === "meals_json" ? mealsColumn : null,
+    );
     writeCachedPlan({ planId, plan: vm, meta: deriveMetaFromRow(insertedRow) });
   } catch (e) {
     try {

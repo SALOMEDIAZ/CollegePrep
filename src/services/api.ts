@@ -17,14 +17,34 @@ type MealDbSearchResponse = { meals: MealDbMeal[] | null };
 const MEALDB_API_KEY = import.meta.env.VITE_MEALDB_API_KEY ?? "1";
 const MEALDB_BASE = `https://www.themealdb.com/api/json/v1/${MEALDB_API_KEY}`;
 
+const MEALDB_CACHE_TTL_MS = 5 * 60 * 1000;
+const mealDbCache = new Map<string, { atMs: number; data: unknown }>();
+const mealDbInFlight = new Map<string, Promise<unknown>>();
+
 // función auxiliar para hacer llamadas a la api
 async function mealDbGet<T>(path: string, params: Record<string, string>) {
   const u = new URL(`${MEALDB_BASE}${path}`);
   for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
-  const r = await fetch(u.toString(), { method: "GET" });
-  if (!r.ok)
-    throw new Error(`TheMealDB request failed: ${r.status} ${r.statusText}`);
-  return (await r.json()) as T;
+  const key = u.toString();
+  const cached = mealDbCache.get(key);
+  if (cached && Date.now() - cached.atMs <= MEALDB_CACHE_TTL_MS) return cached.data as T;
+
+  const inFlight = mealDbInFlight.get(key);
+  if (inFlight) return (await inFlight) as T;
+
+  const p = (async () => {
+    const r = await fetch(key, { method: "GET" });
+    if (!r.ok) throw new Error(`TheMealDB request failed: ${r.status} ${r.statusText}`);
+    return (await r.json()) as T;
+  })();
+  mealDbInFlight.set(key, p as Promise<unknown>);
+  try {
+    const data = await p;
+    mealDbCache.set(key, { atMs: Date.now(), data });
+    return data;
+  } finally {
+    mealDbInFlight.delete(key);
+  }
 }
 
 // trae todos los detalles de una receta por su id
