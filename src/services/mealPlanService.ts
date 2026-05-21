@@ -1,6 +1,5 @@
 import supabase from "./supabaseClient";
-import { ensureProfileRow, fetchAllergyKeywords, fetchProfileByUserId, resolveSupabaseProfileId } from "./profileService";
-import type { ProfileRow } from "../types/profile";
+import { ensureProfileRow, fetchAllergyKeywords, resolveSupabaseProfileId } from "./profileService";
 import type {
   CreatePlanValues,
   MealPlanRow,
@@ -45,19 +44,13 @@ function deriveMetaFromRow(row: Pick<MealPlanRow, "start_date" | "end_date" | "b
   return { start_date: row.start_date, end_date: row.end_date, budget: budgetToNumber(row.budget) };
 }
 
-function deriveMetaFromPlan(plan: MealPlanViewModel) {
-  const dates = plan.days.map((d) => String(d.date ?? "")).filter(Boolean).sort();
-  const start_date = dates[0];
-  const end_date = dates[dates.length - 1];
-  return { start_date, end_date, budget: budgetToNumber(plan.budget) };
-}
-
 function readCachedPlan(row: Pick<MealPlanRow, "id" | "start_date" | "end_date" | "budget">): MealPlanViewModel | null {
   try {
-    const entry = planMemoryCache.get(String(row.id));
+    const planId = String(row.id);
+    const entry = planMemoryCache.get(planId);
     if (!entry) return null;
     if (Date.now() - entry.atMs > PLAN_MEMORY_CACHE_TTL_MS) {
-      planMemoryCache.delete(String(row.id));
+      planMemoryCache.delete(planId);
       return null;
     }
     const parsed = entry.payload;
@@ -230,7 +223,7 @@ async function fetchPersistedMeals(planId: string): Promise<MealPlanMealRow[] | 
 }
 
 async function persistMeals(planId: string, plan: MealPlanViewModel) {
-  if (mealPlanMealsTableStatus === "missing") return;
+  if (mealPlanMealsTableStatus === "missing") return false;
   const rows: MealPlanMealRow[] = [];
   for (const d of plan.days) {
     for (const m of d.meals) {
@@ -246,15 +239,15 @@ async function persistMeals(planId: string, plan: MealPlanViewModel) {
       });
     }
   }
-  if (!rows.length) return;
+  if (!rows.length) return true;
   const { error } = await supabase.from("meal_plan_meals").upsert(rows, { onConflict: "meal_plan_id,date,meal_type" });
   if (!error) {
     mealPlanMealsTableStatus = "present";
-    return;
+    return true;
   }
   if (isMissingMealPlanMealsTableError(error)) {
     mealPlanMealsTableStatus = "missing";
-    return;
+    return false;
   }
   mealPlanMealsTableStatus = "present";
 
@@ -262,6 +255,7 @@ async function persistMeals(planId: string, plan: MealPlanViewModel) {
   if (delErr) throw delErr;
   const { error: insErr } = await supabase.from("meal_plan_meals").insert(rows);
   if (insErr) throw insErr;
+  return true;
 }
 
 async function removePersistedMeals(planId: string) {
@@ -306,7 +300,11 @@ async function ensureMealPlanDaysMealsColumnStatus(planId: string) {
 
 async function persistMealsOnDaysTable(planId: string, plan: MealPlanViewModel) {
   const status = await ensureMealPlanDaysMealsColumnStatus(planId);
-  if (status === "missing") return;
+  if (status === "missing") {
+    throw new Error(
+      "Meal plan meals are not being persisted in Supabase. Either add a jsonb column (meals or meals_json) to meal_plan_days, or create a meal_plan_meals table (and allow writes via RLS).",
+    );
+  }
 
   for (const d of plan.days) {
     const payload = status === "meals" ? { meals: d.meals } : { meals_json: d.meals };
@@ -348,14 +346,6 @@ export async function ensureProfileForUser(userId: string) {
     throw new Error(`Profile row is missing or cannot be created. ${msg}`);
   }
   return profile;
-}
-
-function emptySelections() {
-  const allFalse = { breakfast: false, lunch: false, dinner: false };
-  const days: Weekday[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const out = {} as CreatePlanValues["selections"];
-  for (const d of days) out[d] = { ...allFalse };
-  return out;
 }
 
 async function buildAvoidSetsForProfile(profile: Awaited<ReturnType<typeof ensureProfileForUser>> | null) {
@@ -437,18 +427,27 @@ export async function loadPlanViewModel(row: MealPlanRow): Promise<MealPlanViewM
     return vm;
   }
 
-  const selections = emptySelections();
+  const status = await ensureMealPlanDaysMealsColumnStatus(String(row.id));
+  if (status === "missing" && mealPlanMealsTableStatus === "missing") {
+    throw new Error(
+      "Meal plan is missing persisted meals in Supabase. Add a jsonb column (meals_json) to meal_plan_days or create a meal_plan_meals table, then reload the page.",
+    );
+  }
+
+  const allDaysFalse = { breakfast: false, lunch: false, dinner: false };
+  const selections = {} as CreatePlanValues["selections"];
+  const week: Weekday[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  for (const wd of week) selections[wd] = { ...allDaysFalse };
   for (const d of days) {
     const wd = String(d.weekday ?? "").trim() as Weekday;
     if (!wd) continue;
-    selections[wd] = { breakfast: true, lunch: true, dinner: true };
+    selections[wd] = { breakfast: false, lunch: false, dinner: true };
   }
 
   const profileId = String(row.user_id ?? "").trim();
-  const { profile, error } = await fetchProfileByUserId(profileId);
-  const safeProfile: ProfileRow | null = error ? null : profile;
+  const profile = profileId ? await ensureProfileForUser(profileId) : null;
   const savedIdsArr = profileId ? await fetchSavedRecipeIds(profileId) : [];
-  const avoid = await buildAvoidSetsForProfile(safeProfile);
+  const avoid = await buildAvoidSetsForProfile(profile);
 
   const values: CreatePlanValues = {
     budget: Number(row.budget ?? 0) || 0,
@@ -468,8 +467,8 @@ export async function loadPlanViewModel(row: MealPlanRow): Promise<MealPlanViewM
     avoid,
     seed: String(row.id),
   });
-  await persistMeals(String(row.id), vm);
-  await persistMealsOnDaysTable(String(row.id), vm);
+  const persistedToMealsTable = await persistMeals(String(row.id), vm);
+  if (!persistedToMealsTable) await persistMealsOnDaysTable(String(row.id), vm);
   writeCachedPlan({ planId: String(row.id), plan: vm, meta: deriveMetaFromRow(row) });
   return vm;
 }
@@ -571,8 +570,10 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
       avoid,
       seed: planId,
     });
-    await persistMealsOnDaysTable(planId, vm);
-    await persistMeals(planId, vm);
+    const persistedToMealsTable = await persistMeals(planId, vm);
+    if (!persistedToMealsTable) {
+      await persistMealsOnDaysTable(planId, vm);
+    }
     writeCachedPlan({ planId, plan: vm, meta: deriveMetaFromRow(insertedRow) });
   } catch (e) {
     try {
@@ -696,6 +697,6 @@ export async function replaceMealInPlan(
       if (isMissingMealPlanMealsTableError(e)) mealPlanMealsTableStatus = "missing";
     }
   }
-  writeCachedPlan({ planId, plan: nextPlan, meta: deriveMetaFromPlan(nextPlan) });
+  writeCachedPlan({ planId, plan: nextPlan });
   return nextPlan;
 }
