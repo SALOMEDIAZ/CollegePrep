@@ -257,6 +257,7 @@ export async function fetchWeeklyBudgetUsedPercent(userId: string): Promise<numb
     rangeStart: fromISODate(row.start_date),
     rangeEnd: fromISODate(row.end_date),
     avoid,
+    seed: String(row.id),
   });
 
   if (!(vm.budget > 0)) return 0;

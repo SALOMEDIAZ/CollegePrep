@@ -133,7 +133,29 @@ export function shiftWeekStartIso(startIso: string, deltaWeeks: number) {
 }
 
 export function findPlanIndexForRange(rows: MealPlanRow[], rangeStartIso: string, rangeEndIso: string) {
-  return rows.findIndex((r) => r.start_date <= rangeEndIso && r.end_date >= rangeStartIso);
+  let bestIdx = -1;
+  let bestStart = "";
+  let bestCreated = "";
+  let bestId = "";
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    if (!(r.start_date <= rangeEndIso && r.end_date >= rangeStartIso)) continue;
+    const start = String(r.start_date ?? "");
+    const created = String(r.created_at ?? "");
+    const id = String(r.id ?? "");
+    const better =
+      bestIdx < 0 ||
+      start > bestStart ||
+      (start === bestStart && created > bestCreated) ||
+      (start === bestStart && created === bestCreated && id > bestId);
+    if (!better) continue;
+    bestIdx = i;
+    bestStart = start;
+    bestCreated = created;
+    bestId = id;
+  }
+  return bestIdx;
 }
 
 function norm(s: string) {
@@ -229,32 +251,69 @@ function mealAllowedWithSets(meal: MealDbMeal, allergyAvoid: Set<string>, dietAv
   return true;
 }
 
-function sampleUnique<T>(items: T[], count: number) {
+type Rng = () => number;
+
+function seedToUInt32(seed: string) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(a: number): Rng {
+  let x = a >>> 0;
+  return () => {
+    x = (x + 0x6d2b79f5) >>> 0;
+    let t = x;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function makeRng(seed: string | null | undefined): Rng {
+  if (!seed) return Math.random;
+  return mulberry32(seedToUInt32(seed));
+}
+
+function sampleUniqueWithRng<T>(items: T[], count: number, rng: Rng) {
   if (count <= 0) return [];
   const arr = items.slice();
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr.slice(0, Math.min(count, arr.length));
 }
 
-async function buildNewRecipePool(allergyAvoid: Set<string>, dietAvoid: Set<string>, minCount: number, excludeIds: Set<string>) {
+async function buildNewRecipePool(
+  allergyAvoid: Set<string>,
+  dietAvoid: Set<string>,
+  minCount: number,
+  excludeIds: Set<string>,
+  rng: Rng,
+) {
   const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
   const pickedLetters = new Set<string>();
   const pool: string[] = [];
   const seen = new Set<string>();
 
   for (let round = 0; round < 10 && pool.length < minCount; round++) {
-    const letters = sampleUnique(
+    const letters = sampleUniqueWithRng(
       alphabet.filter((l) => !pickedLetters.has(l)),
       3,
+      rng,
     );
     if (!letters.length) break;
     letters.forEach((l) => pickedLetters.add(l));
     const lists = await Promise.all(letters.map((l) => searchMealsByFirstLetter(l)));
     for (const list of lists) {
-      for (const m of list) {
+      const sorted = list
+        .slice()
+        .sort((a, b) => String(a?.idMeal ?? "").localeCompare(String(b?.idMeal ?? "")));
+      for (const m of sorted) {
         const id = String(m?.idMeal ?? "");
         if (!id) continue;
         if (excludeIds.has(id)) continue;
@@ -298,12 +357,14 @@ export async function buildMealsForSlots(args: {
   rangeStart: Date;
   rangeEnd: Date;
   avoid: { allergyAvoid: Set<string>; dietAvoid: Set<string> };
+  seed?: string;
 }) {
-  const { values, savedIdsArr, weekTitle, rangeStart, rangeEnd, avoid } = args;
+  const { values, savedIdsArr, weekTitle, rangeStart, rangeEnd, avoid, seed } = args;
+  const rng = makeRng(seed);
   const savedIds = new Set(savedIdsArr);
   const newPoolPromise = values.onlySavedRecipes
     ? Promise.resolve([] as string[])
-    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 70, values.onlyNewRecipes ? savedIds : new Set<string>());
+    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 70, values.onlyNewRecipes ? savedIds : new Set<string>(), rng);
   const ingredientIndexPromise = getIngredientIndex();
   const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
 
@@ -319,10 +380,10 @@ export async function buildMealsForSlots(args: {
   async function pickOne() {
     const maxAttempts = 45;
     for (let i = 0; i < maxAttempts; i++) {
-      const fromSaved = values.onlySavedRecipes || (!values.onlyNewRecipes && savedIdsArr.length > 0 && Math.random() < 0.4);
+      const fromSaved = values.onlySavedRecipes || (!values.onlyNewRecipes && savedIdsArr.length > 0 && rng() < 0.4);
       const source = fromSaved ? savedIdsArr : newPool;
       if (!source.length) continue;
-      const id = String(source[Math.floor(Math.random() * source.length)] ?? "");
+      const id = String(source[Math.floor(rng() * source.length)] ?? "");
       if (!id) continue;
       if (usedRecipes.has(id)) continue;
       if (triedRecipes.has(id)) continue;
@@ -380,7 +441,9 @@ export async function pickReplacementMeal(args: {
   const effectiveExclude = new Set<string>(excludeIds);
   if (onlyNewRecipes) for (const id of savedIds) effectiveExclude.add(id);
 
-  const newPoolPromise = onlySavedRecipes ? Promise.resolve([] as string[]) : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 50, effectiveExclude);
+  const newPoolPromise = onlySavedRecipes
+    ? Promise.resolve([] as string[])
+    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 50, effectiveExclude, Math.random);
   const ingredientIndexPromise = getIngredientIndex();
   const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
 

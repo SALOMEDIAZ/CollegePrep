@@ -65,7 +65,7 @@ export const bootstrapMealPlan = createAsyncThunk("mealPlan/bootstrap", async ()
       cursorTitle: initialCursor.title,
     };
   }
-  const selected = await selectPlanForRangeAndLoad(uid, rows, initialCursor.startIso, initialCursor.endIso);
+  const selected = await selectPlanForRangeAndLoad(rows, initialCursor.startIso, initialCursor.endIso);
   return {
     userId: uid,
     plans: rows,
@@ -93,7 +93,7 @@ export const shiftWeek = createAsyncThunk("mealPlan/shiftWeek", async (deltaWeek
       cursorTitle: nextCursor.title,
     };
   }
-  const selected = await selectPlanForRangeAndLoad(userId, rows, nextCursor.startIso, nextCursor.endIso);
+  const selected = await selectPlanForRangeAndLoad(rows, nextCursor.startIso, nextCursor.endIso);
   return { ...selected, cursorStartIso: nextCursor.startIso, cursorEndIso: nextCursor.endIso, cursorTitle: nextCursor.title };
 });
 
@@ -105,7 +105,7 @@ export const loadPlanByIndex = createAsyncThunk("mealPlan/loadByIndex", async (i
     return { planIndex: -1, planId: null as string | null, plan: null as MealPlanState["plan"], selectedDay: null as string | null };
   }
   const row = rows[idx];
-  const plan = await loadPlanViewModel(userId, row);
+  const plan = await loadPlanViewModel(row);
   return { planIndex: idx, planId: row.id, plan, selectedDay: defaultSelectedDay(row) };
 });
 

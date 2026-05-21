@@ -1,5 +1,6 @@
 import supabase from "./supabaseClient";
-import { ensureProfileRow, fetchAllergyKeywords, resolveSupabaseProfileId } from "./profileService";
+import { ensureProfileRow, fetchAllergyKeywords, fetchProfileByUserId, resolveSupabaseProfileId } from "./profileService";
+import type { ProfileRow } from "../types/profile";
 import type {
   CreatePlanValues,
   MealPlanRow,
@@ -30,6 +31,8 @@ type MealPlanCachePayload = {
   plan: MealPlanViewModel;
   meta?: { start_date?: string; end_date?: string; budget?: number };
 };
+
+let mealPlanMealsTableStatus: "unknown" | "missing" | "present" = "unknown";
 
 function canUseLocalStorage() {
   try {
@@ -102,8 +105,211 @@ function removeCachedPlan(planId: string) {
   }
 }
 
+type MealPlanMealRow = {
+  meal_plan_id: string;
+  date: string;
+  weekday: Weekday | null;
+  meal_type: MealType;
+  recipe_id: string;
+  recipe_name: string;
+  recipe_thumb: string | null;
+  cost: number;
+};
+
+type MealPlanDayRow = { date: string; weekday: string | null; meals?: unknown | null; meals_json?: unknown | null };
+
+function isMissingMealPlanMealsTableError(err: unknown) {
+  const msg = String((err as { message?: unknown })?.message ?? err);
+  return (
+    msg.includes("schema cache") ||
+    msg.includes("Could not find the table") ||
+    msg.includes("does not exist") ||
+    msg.includes("relation") ||
+    msg.includes("column")
+  );
+}
+
+function weekdayFromISODate(iso: string): Weekday {
+  const [y, m, d] = iso.split("-").map((x) => Number(x));
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  dt.setHours(0, 0, 0, 0);
+  const map: Weekday[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return map[dt.getDay()] ?? "Mon";
+}
+
+function buildPlanFromPersistedMeals(args: {
+  title: string;
+  budget: number;
+  daysRows: Array<{ date: string; weekday: string | null }>;
+  mealRows: MealPlanMealRow[];
+}) {
+  const byDate = new Map<string, { date: string; weekday: Weekday; meals: MealPlanMeal[] }>();
+  for (const d of args.daysRows) {
+    const date = String(d.date ?? "").trim();
+    if (!date) continue;
+    const wd = (String(d.weekday ?? "").trim() as Weekday) || weekdayFromISODate(date);
+    byDate.set(date, { date, weekday: wd, meals: [] });
+  }
+  for (const r of args.mealRows) {
+    const date = String(r.date ?? "").trim();
+    if (!date) continue;
+    const existing = byDate.get(date);
+    const weekday = existing?.weekday ?? (r.weekday ?? weekdayFromISODate(date));
+    const bucket = existing ?? { date, weekday, meals: [] as MealPlanMeal[] };
+    bucket.meals.push({
+      mealType: r.meal_type,
+      recipeId: String(r.recipe_id ?? ""),
+      recipeName: String(r.recipe_name ?? ""),
+      recipeThumb: r.recipe_thumb ?? null,
+      cost: Number(r.cost ?? 0) || 0,
+    });
+    if (!existing) byDate.set(date, bucket);
+  }
+  const days = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+  const used = days.flatMap((d) => d.meals).reduce((acc, m) => acc + Number(m.cost ?? 0), 0);
+  return { title: args.title, budget: args.budget, used, days } satisfies MealPlanViewModel;
+}
+
+function mealsFromUnknown(value: unknown): MealPlanMeal[] {
+  const arr = Array.isArray(value) ? value : null;
+  if (!arr) return [];
+  const out: MealPlanMeal[] = [];
+  for (const item of arr) {
+    const r = item as Record<string, unknown>;
+    const mealType = String((r.mealType ?? r.meal_type ?? "") as string).trim() as MealType;
+    if (mealType !== "breakfast" && mealType !== "lunch" && mealType !== "dinner") continue;
+    const recipeId = String((r.recipeId ?? r.recipe_id ?? "") as string).trim();
+    if (!recipeId) continue;
+    const recipeName = String((r.recipeName ?? r.recipe_name ?? recipeId) as string).trim() || recipeId;
+    const recipeThumbRaw = r.recipeThumb ?? r.recipe_thumb ?? null;
+    const recipeThumb = recipeThumbRaw ? String(recipeThumbRaw) : null;
+    const cost = Number(r.cost ?? 0) || 0;
+    out.push({ mealType, recipeId, recipeName, recipeThumb, cost });
+  }
+  return out;
+}
+
+function buildPlanFromDaysRowsWithMeals(args: {
+  title: string;
+  budget: number;
+  daysRows: MealPlanDayRow[];
+}) {
+  const days = args.daysRows
+    .map((d) => {
+      const date = String(d.date ?? "").trim();
+      if (!date) return null;
+      const wd = (String(d.weekday ?? "").trim() as Weekday) || weekdayFromISODate(date);
+      const meals = mealsFromUnknown(d.meals ?? d.meals_json);
+      return { date, weekday: wd, meals };
+    })
+    .filter((x): x is MealPlanViewModel["days"][number] => Boolean(x))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const used = days.flatMap((d) => d.meals).reduce((acc, m) => acc + Number(m.cost ?? 0), 0);
+  return { title: args.title, budget: args.budget, used, days } satisfies MealPlanViewModel;
+}
+
+async function fetchPersistedMeals(planId: string): Promise<MealPlanMealRow[] | null> {
+  if (mealPlanMealsTableStatus === "missing") return null;
+  const { data, error } = await supabase
+    .from("meal_plan_meals")
+    .select("meal_plan_id,date,weekday,meal_type,recipe_id,recipe_name,recipe_thumb,cost")
+    .eq("meal_plan_id", planId)
+    .order("date", { ascending: true });
+  if (error) {
+    if (isMissingMealPlanMealsTableError(error)) {
+      mealPlanMealsTableStatus = "missing";
+      return null;
+    }
+    mealPlanMealsTableStatus = "present";
+    throw error;
+  }
+  mealPlanMealsTableStatus = "present";
+  const rows = (data ?? []) as MealPlanMealRow[];
+  return rows;
+}
+
+async function persistMeals(planId: string, plan: MealPlanViewModel) {
+  if (mealPlanMealsTableStatus === "missing") return;
+  const rows: MealPlanMealRow[] = [];
+  for (const d of plan.days) {
+    for (const m of d.meals) {
+      rows.push({
+        meal_plan_id: planId,
+        date: d.date,
+        weekday: d.weekday,
+        meal_type: m.mealType,
+        recipe_id: m.recipeId,
+        recipe_name: m.recipeName,
+        recipe_thumb: m.recipeThumb ?? null,
+        cost: Number(m.cost ?? 0) || 0,
+      });
+    }
+  }
+  if (!rows.length) return;
+  const { error } = await supabase.from("meal_plan_meals").upsert(rows, { onConflict: "meal_plan_id,date,meal_type" });
+  if (!error) {
+    mealPlanMealsTableStatus = "present";
+    return;
+  }
+  if (isMissingMealPlanMealsTableError(error)) {
+    mealPlanMealsTableStatus = "missing";
+    return;
+  }
+  mealPlanMealsTableStatus = "present";
+
+  const { error: delErr } = await supabase.from("meal_plan_meals").delete().eq("meal_plan_id", planId);
+  if (delErr) throw delErr;
+  const { error: insErr } = await supabase.from("meal_plan_meals").insert(rows);
+  if (insErr) throw insErr;
+}
+
+async function removePersistedMeals(planId: string) {
+  if (mealPlanMealsTableStatus === "missing") return;
+  try {
+    const { error } = await supabase.from("meal_plan_meals").delete().eq("meal_plan_id", planId);
+    if (error) {
+      if (isMissingMealPlanMealsTableError(error)) {
+        mealPlanMealsTableStatus = "missing";
+        return;
+      }
+      mealPlanMealsTableStatus = "present";
+      throw error;
+    }
+    mealPlanMealsTableStatus = "present";
+  } catch {
+    return;
+  }
+}
+
+async function persistMealsOnDaysTable(planId: string, plan: MealPlanViewModel) {
+  try {
+    for (const d of plan.days) {
+      const { error } = await supabase.from("meal_plan_days").update({ meals: d.meals }).eq("meal_plan_id", planId).eq("date", d.date);
+      if (!error) continue;
+      const { error: error2 } = await supabase
+        .from("meal_plan_days")
+        .update({ meals_json: d.meals })
+        .eq("meal_plan_id", planId)
+        .eq("date", d.date);
+      if (error2) return;
+    }
+  } catch {
+    return;
+  }
+}
+
+async function updateOneMealOnDaysTable(planId: string, date: string, nextMeals: MealPlanMeal[]) {
+  try {
+    const { error } = await supabase.from("meal_plan_days").update({ meals: nextMeals }).eq("meal_plan_id", planId).eq("date", date);
+    if (!error) return;
+    await supabase.from("meal_plan_days").update({ meals_json: nextMeals }).eq("meal_plan_id", planId).eq("date", date);
+  } catch {
+    return;
+  }
+}
+
 export async function fetchAllPlans(userId: string) {
-  const dbUserId = await resolveSupabaseProfileId(userId, false);
+  const dbUserId = await resolveSupabaseProfileId(userId, true);
   if (!dbUserId) return [];
   const { data, error } = await supabase
     .from("meal_plans")
@@ -139,27 +345,68 @@ async function buildAvoidSetsForProfile(profile: Awaited<ReturnType<typeof ensur
 }
 
 async function fetchMealPlanDays(planId: string) {
-  const { data, error } = await supabase.from("meal_plan_days").select("date,weekday").eq("meal_plan_id", planId);
-  if (error) throw error;
-  return (data ?? []) as Array<{ date: string; weekday: string | null }>;
+  try {
+    const { data, error } = await supabase.from("meal_plan_days").select("date,weekday,meals").eq("meal_plan_id", planId);
+    if (error) throw error;
+    return (data ?? []) as MealPlanDayRow[];
+  } catch {
+    try {
+      const { data, error } = await supabase.from("meal_plan_days").select("date,weekday,meals_json").eq("meal_plan_id", planId);
+      if (error) throw error;
+      return (data ?? []) as MealPlanDayRow[];
+    } catch {
+      const { data, error } = await supabase.from("meal_plan_days").select("date,weekday").eq("meal_plan_id", planId);
+      if (error) throw error;
+      return (data ?? []) as MealPlanDayRow[];
+    }
+  }
 }
 
-export async function loadPlanViewModel(userId: string, row: MealPlanRow): Promise<MealPlanViewModel> {
+export async function loadPlanViewModel(row: MealPlanRow): Promise<MealPlanViewModel> {
   const cached = readCachedPlan(row);
   if (cached) return cached;
 
-  await resolveSupabaseProfileId(userId, false);
-  const profile = await ensureProfileForUser(userId);
-  const savedIdsArr = await fetchSavedRecipeIds(profile.id);
-  const avoid = await buildAvoidSetsForProfile(profile);
-
   const days = await fetchMealPlanDays(row.id);
+  const anyMealsOnDays = days.some((d) => {
+    const v = d.meals ?? d.meals_json;
+    return Array.isArray(v) && v.length > 0;
+  });
+  if (anyMealsOnDays) {
+    const budget = Number(row.budget ?? 0) || 0;
+    const vm = buildPlanFromDaysRowsWithMeals({
+      title: planTitleForRow(row),
+      budget,
+      daysRows: days,
+    });
+    writeCachedPlan({ planId: String(row.id), plan: vm, meta: deriveMetaFromRow(row) });
+    return vm;
+  }
+
+  const persistedMeals = await fetchPersistedMeals(String(row.id));
+  if (persistedMeals && persistedMeals.length) {
+    const budget = Number(row.budget ?? 0) || 0;
+    const vm = buildPlanFromPersistedMeals({
+      title: planTitleForRow(row),
+      budget,
+      daysRows: days,
+      mealRows: persistedMeals,
+    });
+    writeCachedPlan({ planId: String(row.id), plan: vm, meta: deriveMetaFromRow(row) });
+    return vm;
+  }
+
   const selections = emptySelections();
   for (const d of days) {
     const wd = String(d.weekday ?? "").trim() as Weekday;
     if (!wd) continue;
     selections[wd] = { breakfast: true, lunch: true, dinner: true };
   }
+
+  const profileId = String(row.user_id ?? "").trim();
+  const { profile, error } = await fetchProfileByUserId(profileId);
+  const safeProfile: ProfileRow | null = error ? null : profile;
+  const savedIdsArr = profileId ? await fetchSavedRecipeIds(profileId) : [];
+  const avoid = await buildAvoidSetsForProfile(safeProfile);
 
   const values: CreatePlanValues = {
     budget: Number(row.budget ?? 0) || 0,
@@ -177,12 +424,15 @@ export async function loadPlanViewModel(userId: string, row: MealPlanRow): Promi
     rangeStart,
     rangeEnd,
     avoid,
+    seed: String(row.id),
   });
+  await persistMeals(String(row.id), vm);
+  await persistMealsOnDaysTable(String(row.id), vm);
   writeCachedPlan({ planId: String(row.id), plan: vm, meta: deriveMetaFromRow(row) });
   return vm;
 }
 
-export async function selectPlanForRangeAndLoad(userId: string, rows: MealPlanRow[], rangeStartIso: string, rangeEndIso: string) {
+export async function selectPlanForRangeAndLoad(rows: MealPlanRow[], rangeStartIso: string, rangeEndIso: string) {
   const idx = findPlanIndexForRange(rows, rangeStartIso, rangeEndIso);
   const row = rows[idx];
   if (!row) {
@@ -193,11 +443,15 @@ export async function selectPlanForRangeAndLoad(userId: string, rows: MealPlanRo
       selectedDay: null as string | null,
     };
   }
-  const plan = await loadPlanViewModel(userId, row);
+  const plan = await loadPlanViewModel(row);
   return { planIndex: idx, planId: row.id, plan, selectedDay: defaultSelectedDay(row) };
 }
 async function fetchSavedRecipeIds(dbUserId: string) {
-  const { data, error } = await supabase.from("saved_recipes").select("recipe_id").eq("user_id", dbUserId);
+  const { data, error } = await supabase
+    .from("saved_recipes")
+    .select("recipe_id")
+    .eq("user_id", dbUserId)
+    .order("recipe_id", { ascending: true });
   if (error) throw error;
   const rows = (data ?? []) as Array<{ recipe_id: string | null }>;
   return rows.map((r) => String(r.recipe_id ?? "")).filter(Boolean);
@@ -227,6 +481,22 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
   const todayIso = toISODate(new Date());
   const planStartIso = todayIso >= cursorWeek.startIso && todayIso <= cursorWeek.endIso ? todayIso : cursorWeek.startIso;
 
+  const existingForWeek = existingPlans
+    .filter((p) => String(p.user_id ?? "") === String(profileId))
+    .filter((p) => p.start_date >= cursorWeek.startIso && p.start_date <= cursorWeek.endIso && p.end_date === cursorWeek.endIso)
+    .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
+  const reuse = existingForWeek[0];
+  if (reuse) {
+    const plan = await loadPlanViewModel(reuse);
+    return {
+      plans: existingPlans,
+      planIndex: existingPlans.findIndex((p) => p.id === reuse.id),
+      planId: reuse.id,
+      plan,
+      selectedDay: defaultSelectedDay(reuse),
+    };
+  }
+
   const planInsert = {
     user_id: profileId,
     name: cursorWeek.title,
@@ -255,7 +525,10 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
     rangeStart,
     rangeEnd,
     avoid,
+    seed: planId,
   });
+  await persistMeals(planId, vm);
+  await persistMealsOnDaysTable(planId, vm);
   writeCachedPlan({ planId, plan: vm, meta: deriveMetaFromRow(insertedRow) });
 
   const merged = existingPlans.concat(insertedRow).sort((a, b) => a.start_date.localeCompare(b.start_date));
@@ -266,6 +539,7 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
 export async function deletePlanAndSelectNext(userId: string, planId: string, plans: MealPlanRow[], cursorStartIso: string, cursorEndIso: string) {
   const dbUserId = await resolveSupabaseProfileId(userId, false);
   if (!dbUserId) throw new Error("Could not resolve Supabase profile id.");
+  await removePersistedMeals(planId);
   const { error: daysErr } = await supabase.from("meal_plan_days").delete().eq("meal_plan_id", planId);
   if (daysErr) throw daysErr;
   const { error: planErr } = await supabase.from("meal_plans").delete().eq("id", planId).eq("user_id", dbUserId);
@@ -273,7 +547,7 @@ export async function deletePlanAndSelectNext(userId: string, planId: string, pl
   removeCachedPlan(planId);
 
   const remaining = plans.filter((p) => p.id !== planId);
-  const selected = await selectPlanForRangeAndLoad(userId, remaining, cursorStartIso, cursorEndIso);
+  const selected = await selectPlanForRangeAndLoad(remaining, cursorStartIso, cursorEndIso);
   return { plans: remaining, ...selected };
 }
 
@@ -337,6 +611,34 @@ export async function replaceMealInPlan(
 
   const nextUsed = usedWithout + Number(picked.cost ?? 0);
   const nextPlan: MealPlanViewModel = { ...plan, used: nextUsed, days: nextDays };
+  await updateOneMealOnDaysTable(planId, target.date, nextDays[dayIdx]?.meals ?? []);
+  if (mealPlanMealsTableStatus !== "missing") {
+    try {
+      const { error } = await supabase.from("meal_plan_meals").upsert(
+        [
+          {
+            meal_plan_id: planId,
+            date: target.date,
+            weekday: day.weekday,
+            meal_type: target.mealType,
+            recipe_id: updatedMeal.recipeId,
+            recipe_name: updatedMeal.recipeName,
+            recipe_thumb: updatedMeal.recipeThumb ?? null,
+            cost: Number(updatedMeal.cost ?? 0) || 0,
+          } satisfies MealPlanMealRow,
+        ],
+        { onConflict: "meal_plan_id,date,meal_type" },
+      );
+      if (error) {
+        if (isMissingMealPlanMealsTableError(error)) mealPlanMealsTableStatus = "missing";
+        else mealPlanMealsTableStatus = "present";
+      } else {
+        mealPlanMealsTableStatus = "present";
+      }
+    } catch (e) {
+      if (isMissingMealPlanMealsTableError(e)) mealPlanMealsTableStatus = "missing";
+    }
+  }
   writeCachedPlan({ planId, plan: nextPlan, meta: deriveMetaFromPlan(nextPlan) });
   return nextPlan;
 }

@@ -26,7 +26,7 @@ export async function getIngredientIndex(): Promise<IngredientIndex> {
   if (ingredientIndexInFlight) return ingredientIndexInFlight;
 
   ingredientIndexInFlight = (async () => {
-    const { data, error } = await supabase.from("ingredients").select("id,name,price");
+    const { data, error } = await supabase.from("ingredients").select("id,name,price").order("id", { ascending: true });
     if (error) throw error;
     const byNorm = new Map<string, number>();
     const list: IngredientIndex["list"] = [];
