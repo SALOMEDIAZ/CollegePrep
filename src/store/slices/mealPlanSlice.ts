@@ -3,7 +3,6 @@ import { getSessionUserId } from "../../services/authService";
 import {
   createWeekPlanAndLoad,
   deletePlanAndSelectNext,
-  ensureProfileForUser,
   fetchAllPlans,
   loadPlanViewModel,
   replaceMealInPlan,
@@ -52,7 +51,6 @@ const initialState: MealPlanState = {
 export const bootstrapMealPlan = createAsyncThunk("mealPlan/bootstrap", async () => {
   const uid = await getSessionUserId();
   if (!uid) throw new Error("Not authenticated");
-  await ensureProfileForUser(uid);
   const rows = await fetchAllPlans(uid);
   if (!rows.length) {
     return {

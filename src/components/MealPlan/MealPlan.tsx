@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { MealPlanViewModel, MealType } from "../../types/mealPlan";
 
 export type { MealPlanDay, MealPlanMeal, MealPlanViewModel, MealType, Weekday } from "../../types/mealPlan";
@@ -55,10 +55,11 @@ export default function MealPlan({
 
   const isMobile = useMediaQuery("(max-width: 640px)");
   const types: MealType[] = useMemo(() => ["breakfast", "lunch", "dinner"], []);
+  const barStyle = useMemo(() => ({ ["--mp-fill" as string]: `${pct}%` }) as CSSProperties, [pct]);
 
   return (
     <div className="mp-plan">
-      <div className="mp-budgetBar">
+      <div className="mp-budgetBar" style={barStyle}>
         <div className="mp-budgetBarFill" style={{ width: `${pct}%` }} />
         <div className="mp-budgetBarText mp-budgetBarText--desktop">{pct}% of the weekly budget used</div>
         <div className="mp-budgetBarText mp-budgetBarText--mobile">weekly budget used: {pct}%</div>

@@ -23,6 +23,85 @@ import {
   pickReplacementMeal,
 } from "./mealPlanLogic";
 
+const MEAL_PLAN_CACHE_PREFIX = "mealPlanCache:v1:";
+
+type MealPlanCachePayload = {
+  v: 1;
+  plan: MealPlanViewModel;
+  meta?: { start_date?: string; end_date?: string; budget?: number };
+};
+
+function canUseLocalStorage() {
+  try {
+    return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  } catch {
+    return false;
+  }
+}
+
+function cacheKey(planId: string) {
+  return `${MEAL_PLAN_CACHE_PREFIX}${planId}`;
+}
+
+function budgetToNumber(v: unknown) {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function deriveMetaFromRow(row: Pick<MealPlanRow, "start_date" | "end_date" | "budget">) {
+  return { start_date: row.start_date, end_date: row.end_date, budget: budgetToNumber(row.budget) };
+}
+
+function deriveMetaFromPlan(plan: MealPlanViewModel) {
+  const dates = plan.days.map((d) => String(d.date ?? "")).filter(Boolean).sort();
+  const start_date = dates[0];
+  const end_date = dates[dates.length - 1];
+  return { start_date, end_date, budget: budgetToNumber(plan.budget) };
+}
+
+function readCachedPlan(row: Pick<MealPlanRow, "id" | "start_date" | "end_date" | "budget">): MealPlanViewModel | null {
+  if (!canUseLocalStorage()) return null;
+  try {
+    const raw = window.localStorage.getItem(cacheKey(String(row.id)));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<MealPlanCachePayload> | null;
+    if (!parsed || parsed.v !== 1 || !parsed.plan) return null;
+    const plan = parsed.plan as MealPlanViewModel;
+    if (!Array.isArray((plan as MealPlanViewModel).days)) return null;
+
+    const meta = parsed.meta ?? null;
+    if (meta) {
+      const rowBudget = budgetToNumber(row.budget);
+      if (meta.start_date && meta.start_date !== row.start_date) return null;
+      if (meta.end_date && meta.end_date !== row.end_date) return null;
+      if (typeof meta.budget === "number" && meta.budget !== rowBudget) return null;
+    }
+
+    return plan;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedPlan(args: { planId: string; plan: MealPlanViewModel; meta?: MealPlanCachePayload["meta"] }) {
+  if (!canUseLocalStorage()) return;
+  try {
+    const payload: MealPlanCachePayload = { v: 1, plan: args.plan, meta: args.meta };
+    window.localStorage.setItem(cacheKey(args.planId), JSON.stringify(payload));
+  } catch {
+    return;
+  }
+}
+
+function removeCachedPlan(planId: string) {
+  if (!canUseLocalStorage()) return;
+  try {
+    window.localStorage.removeItem(cacheKey(planId));
+  } catch {
+    return;
+  }
+}
+
 export async function fetchAllPlans(userId: string) {
   const dbUserId = await resolveSupabaseProfileId(userId, false);
   if (!dbUserId) return [];
@@ -66,6 +145,9 @@ async function fetchMealPlanDays(planId: string) {
 }
 
 export async function loadPlanViewModel(userId: string, row: MealPlanRow): Promise<MealPlanViewModel> {
+  const cached = readCachedPlan(row);
+  if (cached) return cached;
+
   await resolveSupabaseProfileId(userId, false);
   const profile = await ensureProfileForUser(userId);
   const savedIdsArr = await fetchSavedRecipeIds(profile.id);
@@ -88,7 +170,7 @@ export async function loadPlanViewModel(userId: string, row: MealPlanRow): Promi
 
   const rangeStart = fromISODate(row.start_date);
   const rangeEnd = fromISODate(row.end_date);
-  return buildMealsForSlots({
+  const vm = await buildMealsForSlots({
     values,
     savedIdsArr,
     weekTitle: planTitleForRow(row),
@@ -96,6 +178,8 @@ export async function loadPlanViewModel(userId: string, row: MealPlanRow): Promi
     rangeEnd,
     avoid,
   });
+  writeCachedPlan({ planId: String(row.id), plan: vm, meta: deriveMetaFromRow(row) });
+  return vm;
 }
 
 export async function selectPlanForRangeAndLoad(userId: string, rows: MealPlanRow[], rangeStartIso: string, rangeEndIso: string) {
@@ -172,6 +256,7 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
     rangeEnd,
     avoid,
   });
+  writeCachedPlan({ planId, plan: vm, meta: deriveMetaFromRow(insertedRow) });
 
   const merged = existingPlans.concat(insertedRow).sort((a, b) => a.start_date.localeCompare(b.start_date));
   const planIndex = merged.findIndex((r) => r.id === planId);
@@ -185,6 +270,7 @@ export async function deletePlanAndSelectNext(userId: string, planId: string, pl
   if (daysErr) throw daysErr;
   const { error: planErr } = await supabase.from("meal_plans").delete().eq("id", planId).eq("user_id", dbUserId);
   if (planErr) throw planErr;
+  removeCachedPlan(planId);
 
   const remaining = plans.filter((p) => p.id !== planId);
   const selected = await selectPlanForRangeAndLoad(userId, remaining, cursorStartIso, cursorEndIso);
@@ -193,7 +279,7 @@ export async function deletePlanAndSelectNext(userId: string, planId: string, pl
 
 export async function replaceMealInPlan(
   userId: string,
-  _planId: string,
+  planId: string,
   plan: MealPlanViewModel,
   planRow: Pick<MealPlanRow, "only_saved_recipes" | "only_new_recipes">,
   target: { date: string; mealType: MealType; recipeId: string },
@@ -251,5 +337,6 @@ export async function replaceMealInPlan(
 
   const nextUsed = usedWithout + Number(picked.cost ?? 0);
   const nextPlan: MealPlanViewModel = { ...plan, used: nextUsed, days: nextDays };
+  writeCachedPlan({ planId, plan: nextPlan, meta: deriveMetaFromPlan(nextPlan) });
   return nextPlan;
 }

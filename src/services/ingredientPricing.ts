@@ -12,23 +12,45 @@ function normIngredientName(name: string) {
     .trim();
 }
 
+const INGREDIENT_INDEX_TTL_MS = 30 * 60 * 1000;
+let ingredientIndexCache: { index: IngredientIndex; atMs: number } | null = null;
+let ingredientIndexInFlight: Promise<IngredientIndex> | null = null;
+
+function nowMs() {
+  return Date.now();
+}
+
 export async function getIngredientIndex(): Promise<IngredientIndex> {
-  const { data, error } = await supabase.from("ingredients").select("id,name,price");
-  if (error) throw error;
-  const byNorm = new Map<string, number>();
-  const list: IngredientIndex["list"] = [];
-  const priceById = new Map<number, number>();
-  for (const row of (data ?? []) as IngredientRow[]) {
-    const name = String(row.name ?? "").trim();
-    if (!name) continue;
-    const norm = normIngredientName(name);
-    if (!norm) continue;
-    if (!byNorm.has(norm)) byNorm.set(norm, row.id);
-    list.push({ id: row.id, name, norm });
-    const price = Number(row.price ?? 0);
-    if (Number.isFinite(price)) priceById.set(row.id, price);
+  const cached = ingredientIndexCache;
+  if (cached && nowMs() - cached.atMs <= INGREDIENT_INDEX_TTL_MS) return cached.index;
+  if (ingredientIndexInFlight) return ingredientIndexInFlight;
+
+  ingredientIndexInFlight = (async () => {
+    const { data, error } = await supabase.from("ingredients").select("id,name,price");
+    if (error) throw error;
+    const byNorm = new Map<string, number>();
+    const list: IngredientIndex["list"] = [];
+    const priceById = new Map<number, number>();
+    for (const row of (data ?? []) as IngredientRow[]) {
+      const name = String(row.name ?? "").trim();
+      if (!name) continue;
+      const norm = normIngredientName(name);
+      if (!norm) continue;
+      if (!byNorm.has(norm)) byNorm.set(norm, row.id);
+      list.push({ id: row.id, name, norm });
+      const price = Number(row.price ?? 0);
+      if (Number.isFinite(price)) priceById.set(row.id, price);
+    }
+    const index = { byNorm, list, priceById };
+    ingredientIndexCache = { index, atMs: nowMs() };
+    return index;
+  })();
+
+  try {
+    return await ingredientIndexInFlight;
+  } finally {
+    ingredientIndexInFlight = null;
   }
-  return { byNorm, list, priceById };
 }
 
 function pickBestIngredientId(name: string, index: IngredientIndex) {

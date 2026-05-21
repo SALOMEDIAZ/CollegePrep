@@ -301,25 +301,35 @@ export async function buildMealsForSlots(args: {
 }) {
   const { values, savedIdsArr, weekTitle, rangeStart, rangeEnd, avoid } = args;
   const savedIds = new Set(savedIdsArr);
-  const newPool = values.onlySavedRecipes
-    ? []
-    : await buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 120, values.onlyNewRecipes ? savedIds : new Set<string>());
+  const newPoolPromise = values.onlySavedRecipes
+    ? Promise.resolve([] as string[])
+    : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 70, values.onlyNewRecipes ? savedIds : new Set<string>());
+  const ingredientIndexPromise = getIngredientIndex();
+  const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
 
   const slots = buildSelectedSlots(values, rangeStart, rangeEnd);
-  const ingredientIndex = await getIngredientIndex();
   const usedRecipes = new Set<string>();
+  const triedRecipes = new Set<string>();
+  const resolvedCache = new Map<
+    string,
+    Awaited<ReturnType<typeof resolveMealWithCostUsingIndex>> | undefined
+  >();
   let remaining = values.budget;
 
   async function pickOne() {
-    const maxAttempts = 80;
+    const maxAttempts = 45;
     for (let i = 0; i < maxAttempts; i++) {
       const fromSaved = values.onlySavedRecipes || (!values.onlyNewRecipes && savedIdsArr.length > 0 && Math.random() < 0.4);
       const source = fromSaved ? savedIdsArr : newPool;
       if (!source.length) continue;
-      const id = source[Math.floor(Math.random() * source.length)];
+      const id = String(source[Math.floor(Math.random() * source.length)] ?? "");
       if (!id) continue;
       if (usedRecipes.has(id)) continue;
-      const resolved = await resolveMealWithCostUsingIndex(id, ingredientIndex);
+      if (triedRecipes.has(id)) continue;
+      triedRecipes.add(id);
+      const cached = resolvedCache.get(id);
+      const resolved = cached !== undefined ? cached : await resolveMealWithCostUsingIndex(id, ingredientIndex);
+      if (cached === undefined) resolvedCache.set(id, resolved ?? null);
       if (!resolved) continue;
       const c = Number(resolved.cost ?? 0);
       if (!Number.isFinite(c) || c <= 0) continue;
@@ -370,10 +380,16 @@ export async function pickReplacementMeal(args: {
   const effectiveExclude = new Set<string>(excludeIds);
   if (onlyNewRecipes) for (const id of savedIds) effectiveExclude.add(id);
 
-  const newPool = onlySavedRecipes ? [] : await buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 80, effectiveExclude);
-  const ingredientIndex = await getIngredientIndex();
+  const newPoolPromise = onlySavedRecipes ? Promise.resolve([] as string[]) : buildNewRecipePool(avoid.allergyAvoid, avoid.dietAvoid, 50, effectiveExclude);
+  const ingredientIndexPromise = getIngredientIndex();
+  const [newPool, ingredientIndex] = await Promise.all([newPoolPromise, ingredientIndexPromise]);
 
-  const maxAttempts = 120;
+  const tried = new Set<string>();
+  const resolvedCache = new Map<
+    string,
+    Awaited<ReturnType<typeof resolveMealWithCostUsingIndex>> | undefined
+  >();
+  const maxAttempts = 80;
   for (let i = 0; i < maxAttempts; i++) {
     const fromSaved = Boolean(onlySavedRecipes) || (!onlyNewRecipes && savedIdsArr.length > 0 && Math.random() < 0.4);
     const source = fromSaved ? savedIdsArr : newPool;
@@ -381,7 +397,11 @@ export async function pickReplacementMeal(args: {
     const id = String(source[Math.floor(Math.random() * source.length)] ?? "");
     if (!id) continue;
     if (effectiveExclude.has(id)) continue;
-    const resolved = await resolveMealWithCostUsingIndex(id, ingredientIndex);
+    if (tried.has(id)) continue;
+    tried.add(id);
+    const cached = resolvedCache.get(id);
+    const resolved = cached !== undefined ? cached : await resolveMealWithCostUsingIndex(id, ingredientIndex);
+    if (cached === undefined) resolvedCache.set(id, resolved ?? null);
     if (!resolved) continue;
     const c = Number(resolved.cost ?? 0);
     if (!Number.isFinite(c) || c <= 0) continue;
