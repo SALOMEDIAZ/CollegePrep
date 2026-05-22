@@ -1,5 +1,5 @@
 // tarjeta de receta en el listado: foto, tiempos y costo estimado
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import supabase from "../../services/supabaseClient";
 import { getMealById, type MealDbMeal } from "../../services/api";
@@ -10,7 +10,11 @@ type RecipeCardProps =
   | { meal: MealDbMeal; mealId?: never }
   | { meal?: never; mealId: string };
 
-type IngredientRow = { id: number; name: string | null; price: number | string | null };
+type IngredientRow = {
+  id: number;
+  name: string | null;
+  price: number | string | null;
+};
 type IngredientIndex = {
   byNorm: Map<string, number>;
   list: Array<{ id: number; name: string; norm: string }>;
@@ -29,7 +33,8 @@ function normIngredientName(name: string) {
     .trim();
 }
 
-const assetIcon = (f: string) => `/assets/images-icons/${encodeURIComponent(f)}`;
+const assetIcon = (f: string) =>
+  `/assets/images-icons/${encodeURIComponent(f)}`;
 const ICON_PREP = assetIcon("PrepTime.png");
 const ICON_COOK = assetIcon("CookingTime.png");
 const ICON_COST = assetIcon("Budget.png");
@@ -37,7 +42,9 @@ const ICON_COST = assetIcon("Budget.png");
 async function getIngredientIndex(): Promise<IngredientIndex> {
   if (ingredientIndexPromise) return ingredientIndexPromise;
   ingredientIndexPromise = (async () => {
-    const { data, error } = await supabase.from("ingredients").select("id,name,price");
+    const { data, error } = await supabase
+      .from("ingredients")
+      .select("id,name,price");
     if (error) throw error;
     const byNorm = new Map<string, number>();
     const list: IngredientIndex["list"] = [];
@@ -94,7 +101,9 @@ function extractMinutesFromText(text: string) {
 }
 
 function getTimeLabels(meal: MealDbMeal | null) {
-  const tagsRaw = meal ? String((meal as unknown as { strTags?: unknown }).strTags ?? "") : "";
+  const tagsRaw = meal
+    ? String((meal as unknown as { strTags?: unknown }).strTags ?? "")
+    : "";
   const tags = tagsRaw
     .split(",")
     .map((t) => t.trim().toLowerCase())
@@ -107,20 +116,36 @@ function getTimeLabels(meal: MealDbMeal | null) {
   const fallbackPrep = "10 minutes to prep";
   const fallbackCook = noCook ? "No cooking time" : "Cooking time varies";
 
-  if (!times.length) return { prepLabel: fallbackPrep, cookLabel: fallbackCook };
+  if (!times.length)
+    return { prepLabel: fallbackPrep, cookLabel: fallbackCook };
 
   const min = Math.min(...times);
   const max = Math.max(...times);
 
-  if (noCook) return { prepLabel: `${min} minutes to prep`, cookLabel: "No cooking time" };
+  if (noCook)
+    return {
+      prepLabel: `${min} minutes to prep`,
+      cookLabel: "No cooking time",
+    };
 
   if (times.length === 1) {
-    if (min <= 20) return { prepLabel: `${min} minutes to prep`, cookLabel: fallbackCook };
-    return { prepLabel: fallbackPrep, cookLabel: `${min} minutes cooking time` };
+    if (min <= 20)
+      return { prepLabel: `${min} minutes to prep`, cookLabel: fallbackCook };
+    return {
+      prepLabel: fallbackPrep,
+      cookLabel: `${min} minutes cooking time`,
+    };
   }
 
-  if (min === max) return { prepLabel: `${min} minutes to prep`, cookLabel: `${max} minutes cooking time` };
-  return { prepLabel: `${min} minutes to prep`, cookLabel: `${max} minutes cooking time` };
+  if (min === max)
+    return {
+      prepLabel: `${min} minutes to prep`,
+      cookLabel: `${max} minutes cooking time`,
+    };
+  return {
+    prepLabel: `${min} minutes to prep`,
+    cookLabel: `${max} minutes cooking time`,
+  };
 }
 
 function useMeal(mealProp?: MealDbMeal, mealIdProp?: string) {
@@ -196,12 +221,19 @@ function useMealCost(meal: MealDbMeal | null) {
         setLoading(true);
         setPricingError(null);
         const index = await getIngredientIndex();
-        const uniq = Array.from(new Set(ingredientNames.map((n) => String(n).trim()))).filter(Boolean);
+        const uniq = Array.from(
+          new Set(ingredientNames.map((n) => String(n).trim())),
+        ).filter(Boolean);
         const pickedIds = uniq
           .map((n) => pickBestIngredientId(n, index))
-          .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
+          .filter(
+            (id): id is number => typeof id === "number" && Number.isFinite(id),
+          );
         const uniqueIds = Array.from(new Set(pickedIds));
-        const total = uniqueIds.reduce((acc, id) => acc + Number(index.priceById.get(id) ?? 0), 0);
+        const total = uniqueIds.reduce(
+          (acc, id) => acc + Number(index.priceById.get(id) ?? 0),
+          0,
+        );
         if (!alive) return;
         setCost(total);
       } catch (e) {
@@ -222,15 +254,42 @@ function useMealCost(meal: MealDbMeal | null) {
   return { cost, loading, pricingError };
 }
 
-const fmtCop = (n: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Math.round(n));
+const fmtCop = (n: number) =>
+  new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(
+    Math.round(n),
+  );
 
-export default function RecipeCard(props: RecipeCardProps) {
-  const { meal, loading, error } = useMeal("meal" in props ? props.meal : undefined, "mealId" in props ? props.mealId : undefined);
+function RecipeCard(props: RecipeCardProps) {
+  const { meal, loading, error } = useMeal(
+    "meal" in props ? props.meal : undefined,
+    "mealId" in props ? props.mealId : undefined,
+  );
   const { cost, loading: costLoading, pricingError } = useMealCost(meal);
 
-  if (loading) return <article className="recipe-card"><div className="recipe-card__body"><p>Loading…</p></div></article>;
-  if (error) return <article className="recipe-card"><div className="recipe-card__body"><p>{error}</p></div></article>;
-  if (!meal) return <article className="recipe-card"><div className="recipe-card__body"><p>Recipe not found</p></div></article>;
+  if (loading)
+    return (
+      <article className="recipe-card">
+        <div className="recipe-card__body">
+          <p>Loading…</p>
+        </div>
+      </article>
+    );
+  if (error)
+    return (
+      <article className="recipe-card">
+        <div className="recipe-card__body">
+          <p>{error}</p>
+        </div>
+      </article>
+    );
+  if (!meal)
+    return (
+      <article className="recipe-card">
+        <div className="recipe-card__body">
+          <p>Recipe not found</p>
+        </div>
+      </article>
+    );
 
   const href = `/recipes/${meal.idMeal}`;
   const title = meal.strMeal || meal.idMeal;
@@ -238,13 +297,29 @@ export default function RecipeCard(props: RecipeCardProps) {
   const { prepLabel, cookLabel } = getTimeLabels(meal);
 
   return (
-    <Link to={href} className="recipe-card recipe-card--link" aria-label={`Open ${title}`}>
+    <Link
+      to={href}
+      className="recipe-card recipe-card--link"
+      aria-label={`Open ${title}`}
+    >
       {img ? (
         <div className="recipe-card__media">
-          <img src={img} alt={title} className="recipe-card__img" />
+          <img
+            src={img}
+            alt={title}
+            className="recipe-card__img"
+            width={320}
+            height={180}
+            decoding="async"
+          />
           <div className="recipe-card__mediaPillRow" aria-hidden="true">
             <span className="recipe-pill recipe-pill--cook">
-              <img className="recipe-pill__icon" src={ICON_COOK} alt="" aria-hidden="true" />
+              <img
+                className="recipe-pill__icon"
+                src={ICON_COOK}
+                alt=""
+                aria-hidden="true"
+              />
               {cookLabel}
             </span>
           </div>
@@ -253,7 +328,12 @@ export default function RecipeCard(props: RecipeCardProps) {
         <div className="recipe-card__media">
           <div className="recipe-card__mediaPillRow" aria-hidden="true">
             <span className="recipe-pill recipe-pill--cook">
-              <img className="recipe-pill__icon" src={ICON_COOK} alt="" aria-hidden="true" />
+              <img
+                className="recipe-pill__icon"
+                src={ICON_COOK}
+                alt=""
+                aria-hidden="true"
+              />
               {cookLabel}
             </span>
           </div>
@@ -264,17 +344,32 @@ export default function RecipeCard(props: RecipeCardProps) {
         <div className="recipe-card__meta">
           <div className="recipe-card__metaRow">
             <span className="recipe-pill recipe-pill--prep">
-              <img className="recipe-pill__icon" src={ICON_PREP} alt="" aria-hidden="true" />
+              <img
+                className="recipe-pill__icon"
+                src={ICON_PREP}
+                alt=""
+                aria-hidden="true"
+              />
               {prepLabel}
             </span>
             <span className="recipe-pill recipe-pill--cook recipe-pill--cookInline">
-              <img className="recipe-pill__icon" src={ICON_COOK} alt="" aria-hidden="true" />
+              <img
+                className="recipe-pill__icon"
+                src={ICON_COOK}
+                alt=""
+                aria-hidden="true"
+              />
               {cookLabel}
             </span>
           </div>
           <div className="recipe-card__metaRow">
             <span className="recipe-pill recipe-pill--cost">
-              <img className="recipe-pill__icon" src={ICON_COST} alt="" aria-hidden="true" />
+              <img
+                className="recipe-pill__icon"
+                src={ICON_COST}
+                alt=""
+                aria-hidden="true"
+              />
               {costLoading
                 ? "Calculating…"
                 : pricingError
@@ -287,3 +382,5 @@ export default function RecipeCard(props: RecipeCardProps) {
     </Link>
   );
 }
+
+export default memo(RecipeCard);

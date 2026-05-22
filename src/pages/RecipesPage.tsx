@@ -1,14 +1,34 @@
 // pagina de busqueda de recetas con filtros de categoria y alergias
-import { useEffect, useState } from "react";
-import {searchMealsByFirstLetter,searchMealsByName,type MealDbMeal,} from "../services/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  searchMealsByFirstLetter,
+  searchMealsByName,
+  type MealDbMeal,
+} from "../services/api";
 import RecipeCard from "../components/Recipes/RecipeCard";
 import "../styles/recipes.css";
-import {ensureProfileRow,fetchAllergyKeywords,} from "../services/profileService";
+import {
+  ensureProfileRow,
+  fetchAllergyKeywords,
+} from "../services/profileService";
 import { getSessionUserId } from "../services/authService";
 import { useAppDispatch, useAppSelector } from "../store/store";
-import {setMeals,setLoading,setError,setForbiddenKeywords,setSearchQuery,setSubmittedQuery,setProfile,} from "../store/slices/recipeSlice";
+import {
+  setMeals,
+  setLoading,
+  setError,
+  setForbiddenKeywords,
+  setSearchQuery,
+  setSubmittedQuery,
+  setProfile,
+} from "../store/slices/recipeSlice";
 import { CATEGORY_FILTERS, type CategoryFilter } from "../types/recipes";
-import {filterByCategory,getDietRestrictions,getFallbackKeywords,isMealAllowed,} from "../services/recipeService";
+import {
+  filterByCategory,
+  getDietRestrictions,
+  getFallbackKeywords,
+  isMealAllowed,
+} from "../services/recipeService";
 
 // página principal de recetas con búsqueda y filtros
 const RecipesPage = () => {
@@ -20,21 +40,29 @@ const RecipesPage = () => {
   const loading = useAppSelector((state) => state.recipes.loading);
   const error = useAppSelector((state) => state.recipes.error);
   const meals = useAppSelector((state) => state.recipes.meals);
+  const forbiddenKeywords = useAppSelector(
+    (state) => state.recipes.forbiddenKeywords,
+  );
 
   // Estado local para la categoría activa
   const [activeCategory, setActiveCategory] = useState<CategoryFilter | null>(
     null,
   );
+  const [profileReady, setProfileReady] = useState(false);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   const isSearchMode = submittedQuery.trim().length > 0;
 
   // Recetas filtradas por categoría (se aplica sobre las meals del store)
-  const displayedMeals = filterByCategory(meals, activeCategory);
+  const displayedMeals = useMemo(
+    () => filterByCategory(meals, activeCategory),
+    [meals, activeCategory],
+  );
 
   // Toggle de categoría: si ya está activa se desactiva, si no se activa
-  function handleCategoryToggle(category: CategoryFilter) {
+  const handleCategoryToggle = useCallback((category: CategoryFilter) => {
     setActiveCategory((prev) => (prev === category ? null : category));
-  }
+  }, []);
 
   // Un solo efecto: mismo cálculo de keywords que antes + mismo fetch que antes.
   // Evita el segundo disparo cuando forbiddenKeywords llegaba desde Redux (doble recarga).
@@ -47,13 +75,18 @@ const RecipesPage = () => {
         dispatch(setError(null));
 
         const uid = await getSessionUserId();
-        if (!uid || !alive) {
+        if (!alive) return;
+
+        if (!uid) {
+          setHasSession(false);
+          setProfileReady(true);
           dispatch(setProfile(null));
           dispatch(setForbiddenKeywords([]));
           dispatch(setMeals([]));
           return;
         }
 
+        setHasSession(true);
         const { profile: p } = await ensureProfileRow(uid);
         if (!alive) return;
         dispatch(setProfile(p));
@@ -73,14 +106,44 @@ const RecipesPage = () => {
             const keywords = await fetchAllergyKeywords(allRestrictions);
             const fallback = getFallbackKeywords(dietRestrictions);
             forbiddenKeywords = [...allRestrictions, ...keywords, ...fallback];
-            if (alive) dispatch(setForbiddenKeywords(forbiddenKeywords));
           } catch {
             forbiddenKeywords = allRestrictions;
-            if (alive) dispatch(setForbiddenKeywords(allRestrictions));
           }
+          if (alive) dispatch(setForbiddenKeywords(forbiddenKeywords));
         }
 
         if (!alive) return;
+        setProfileReady(true);
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : String(e);
+        const msg =
+          raw === "Failed to fetch"
+            ? "Could not reach the profile service. Check your connection and try again."
+            : raw;
+        if (alive) {
+          dispatch(setError(msg));
+          dispatch(setMeals([]));
+        }
+      } finally {
+        if (alive) dispatch(setLoading(false));
+      }
+    };
+
+    run();
+    return () => {
+      alive = false;
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!profileReady || hasSession === false) return;
+
+    let alive = true;
+
+    const run = async () => {
+      try {
+        dispatch(setLoading(true));
+        dispatch(setError(null));
 
         if (isSearchMode) {
           const results = await searchMealsByName(submittedQuery.trim());
@@ -153,20 +216,34 @@ const RecipesPage = () => {
     return () => {
       alive = false;
     };
-  }, [dispatch, isSearchMode, submittedQuery]);
+  }, [
+    dispatch,
+    forbiddenKeywords,
+    hasSession,
+    isSearchMode,
+    profileReady,
+    submittedQuery,
+  ]);
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    dispatch(setSubmittedQuery(query));
-  }
+  const onSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      dispatch(setSubmittedQuery(query));
+    },
+    [dispatch, query],
+  );
 
   // Mensaje de "sin resultados" considerando el filtro de categoría activo
   const noResults = !loading && !error && displayedMeals.length === 0;
-  const noResultsMessage = activeCategory
-    ? `No ${activeCategory.toLowerCase()} recipes found${isSearchMode ? ` for "${submittedQuery}"` : ""}.`
-    : isSearchMode
-      ? "No results"
-      : "No recipes match your preferences.";
+  const noResultsMessage = useMemo(() => {
+    if (activeCategory) {
+      return `No ${activeCategory.toLowerCase()} recipes found${
+        isSearchMode ? ` for "${submittedQuery}"` : ""
+      }.`;
+    }
+    if (isSearchMode) return "No results";
+    return "No recipes match your preferences.";
+  }, [activeCategory, isSearchMode, submittedQuery]);
 
   return (
     <div className="recipes-page">
