@@ -20,6 +20,7 @@ import type { AppUser } from "../types/user";
 const DEF_AVATAR = `/assets/images-icons/${encodeURIComponent("usuario 1.png")}`;
 const defaultTags = ["Peanut", "Mushrooms", "Milk"];
 
+// filas de checkboxes de dieta (key mapea a columnas de supabase)
 const PREF_ROWS = [
   { id: "p1", key: "veg" as const, label: "Vegetarian" },
   { id: "p2", key: "vegan" as const, label: "Vegan" },
@@ -41,6 +42,8 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const dlgRef = useRef<HTMLDialogElement>(null);
   const user: AppUser | null = reduxUser;
+
+  // formulario controlado: cada campo tiene su useState
   const [name, setName] = useState("");
   const [email, setEmail] = useState(() => reduxUser?.email || "");
   const [username, setUsername] = useState("");
@@ -68,6 +71,7 @@ export default function SettingsPage() {
   const [ready, setReady] = useState(false);
   const [saveNotice, setSaveNotice] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
 
+  // al montar: trae fila de supabase y rellena el form
   useEffect(() => {
     async function load() {
       if (!reduxUser) return;
@@ -116,6 +120,7 @@ export default function SettingsPage() {
     { label: "Career", value: career, set: setCareer },
   ];
 
+  // guarda todo: primero supabase, luego firebase si cambio el email
   async function saveAll() {
     if (!user) return;
     setSaveNotice(null);
@@ -123,7 +128,6 @@ export default function SettingsPage() {
 
     const ageNum = age.trim() === "" ? null : Number.parseInt(age, 10);
 
-    // PRIMERO SUPABASE: DIETA, ALERGIAS, CARRERA, ETC (SIN EMAIL NI PASSWORD EN SUPABASE AUTH)
     const res = await upsertProfile(user.id, {
       full_name: name,
       username: username.replace(/^@/, ""),
@@ -151,7 +155,7 @@ export default function SettingsPage() {
       return;
     }
 
-    // DESPUES FIREBASE: SOLO SI CAMBIA EL EMAIL DE LOGIN
+    // email de login vive en firebase, no en la tabla profiles
     if (email.trim() && email.trim() !== user.email) {
       const eRes = await updateUserEmail(email.trim());
       if (eRes.error) {
@@ -179,6 +183,7 @@ export default function SettingsPage() {
     fileRef.current?.click();
   }
 
+  // sube foto a storage y actualiza avatar_url en supabase
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f || !user) return;
@@ -244,6 +249,7 @@ export default function SettingsPage() {
   return (
     <div className="settings-page-bg settings-root-text" data-theme="light">
       <input ref={fileRef} type="file" accept="image/*" className="settings-file-input" onChange={onFile} />
+      {/* dialog nativo para agregar alergia nueva */}
       <dialog ref={dlgRef} className="settings-dialog">
         <div className="settings-modal-box">
           <h3 className="settings-modal-title">Add allergy</h3>

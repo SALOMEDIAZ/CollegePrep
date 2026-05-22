@@ -1,3 +1,4 @@
+// servicio de planes semanales: supabase + cache en memoria
 import supabase from "./supabaseClient";
 import { ensureProfileRow, fetchAllergyKeywords, resolveSupabaseProfileId } from "./profileService";
 import type {
@@ -29,36 +30,44 @@ type MealPlanCachePayload = {
   meta?: { start_date?: string; end_date?: string; budget?: number };
 };
 
+// detecta si la bd tiene tabla meal_plan_meals o json en days
 let mealPlanMealsTableStatus: "unknown" | "missing" | "present" = "unknown";
 let mealPlanDaysMealsColumnStatus: "unknown" | "meals" | "meals_json" | "missing" = "unknown";
 
 const PLAN_MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
 const planMemoryCache = new Map<string, { payload: MealPlanCachePayload; atMs: number }>();
 
+// convierte budget de supabase (string o number) a numero seguro
 function budgetToNumber(v: unknown) {
   const n = Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
 }
 
+// saca fechas y presupuesto de la fila para validar cache
 function deriveMetaFromRow(row: Pick<MealPlanRow, "start_date" | "end_date" | "budget">) {
   return { start_date: row.start_date, end_date: row.end_date, budget: budgetToNumber(row.budget) };
 }
 
+// lee plan ya armado de memoria si sigue vigente
 function readCachedPlan(row: Pick<MealPlanRow, "id" | "start_date" | "end_date" | "budget">): MealPlanViewModel | null {
   try {
     const planId = String(row.id);
+    // buscamos en el map por id del plan
     const entry = planMemoryCache.get(planId);
     if (!entry) return null;
+    // si pasaron mas de 5 min el cache ya no sirve
     if (Date.now() - entry.atMs > PLAN_MEMORY_CACHE_TTL_MS) {
       planMemoryCache.delete(planId);
       return null;
     }
     const parsed = entry.payload;
+    // version del formato de cache
     if (!parsed || parsed.v !== 1 || !parsed.plan) return null;
     const plan = parsed.plan;
     if (!Array.isArray(plan.days)) return null;
 
     const meta = parsed.meta ?? null;
+    // si cambio fecha o budget en bd invalidamos cache
     if (meta) {
       const rowBudget = budgetToNumber(row.budget);
       if (meta.start_date && meta.start_date !== row.start_date) return null;
@@ -72,6 +81,7 @@ function readCachedPlan(row: Pick<MealPlanRow, "id" | "start_date" | "end_date" 
   }
 }
 
+// guarda el view model en memoria para la proxima visita
 function writeCachedPlan(args: { planId: string; plan: MealPlanViewModel; meta?: MealPlanCachePayload["meta"] }) {
   try {
     const payload: MealPlanCachePayload = { v: 1, plan: args.plan, meta: args.meta };
@@ -102,6 +112,7 @@ type MealPlanMealRow = {
 
 type MealPlanDayRow = { date: string; weekday: string | null; meals?: unknown | null; meals_json?: unknown | null };
 
+// supabase a veces dice que la tabla no existe
 function isMissingMealPlanMealsTableError(err: unknown) {
   const msg = String((err as { message?: unknown })?.message ?? err);
   return (
@@ -202,6 +213,7 @@ function buildPlanFromDaysRowsWithMeals(args: {
   return { title: args.title, budget: args.budget, used, days } satisfies MealPlanViewModel;
 }
 
+// trae comidas guardadas en meal_plan_meals si existe la tabla
 async function fetchPersistedMeals(planId: string): Promise<MealPlanMealRow[] | null> {
   if (mealPlanMealsTableStatus === "missing") return null;
   const { data, error } = await supabase
@@ -222,6 +234,7 @@ async function fetchPersistedMeals(planId: string): Promise<MealPlanMealRow[] | 
   return rows;
 }
 
+// guarda cada comida en filas de meal_plan_meals
 async function persistMeals(planId: string, plan: MealPlanViewModel) {
   if (mealPlanMealsTableStatus === "missing") return false;
   const rows: MealPlanMealRow[] = [];
@@ -276,6 +289,7 @@ async function removePersistedMeals(planId: string) {
   }
 }
 
+// prueba si la columna se llama meals o meals_json
 async function ensureMealPlanDaysMealsColumnStatus(planId: string) {
   if (mealPlanDaysMealsColumnStatus !== "unknown") return mealPlanDaysMealsColumnStatus;
   try {
@@ -327,6 +341,7 @@ async function updateOneMealOnDaysTable(planId: string, date: string, nextMeals:
   }
 }
 
+// lista todos los planes del usuario ordenados por fecha
 export async function fetchAllPlans(userId: string) {
   const dbUserId = await resolveSupabaseProfileId(userId, true);
   if (!dbUserId) return [];
@@ -394,6 +409,7 @@ async function fetchMealPlanDays(planId: string) {
   }
 }
 
+// arma el view model: cache, json en days, tabla meals, o genera nuevo
 export async function loadPlanViewModel(row: MealPlanRow): Promise<MealPlanViewModel> {
   const cached = readCachedPlan(row);
   if (cached) return cached;
@@ -427,6 +443,7 @@ export async function loadPlanViewModel(row: MealPlanRow): Promise<MealPlanViewM
     return vm;
   }
 
+  // no hay comidas guardadas: regenera con mealPlanLogic
   const status = await ensureMealPlanDaysMealsColumnStatus(String(row.id));
   if (status === "missing" && mealPlanMealsTableStatus === "missing") {
     throw new Error(
@@ -525,6 +542,7 @@ async function insertMealPlanDays(
   if (daysErr) throw daysErr;
 }
 
+// crea plan de la semana o reutiliza uno existente
 export async function createWeekPlanAndLoad(userId: string, values: CreatePlanValues, existingPlans: MealPlanRow[], cursorWeekStartIso: string) {
   const dbUserId = await resolveSupabaseProfileId(userId, true);
   if (!dbUserId) throw new Error("Could not resolve Supabase profile id.");
@@ -539,6 +557,7 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
     .filter((p) => p.start_date >= cursorWeek.startIso && p.start_date <= cursorWeek.endIso && p.end_date === cursorWeek.endIso)
     .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
   const reuse = existingForWeek[0];
+  // ya hay plan esta semana, no insertamos otro
   if (reuse) {
     const plan = await loadPlanViewModel(reuse);
     return {
@@ -600,6 +619,7 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
     );
     writeCachedPlan({ planId, plan: vm, meta: deriveMetaFromRow(insertedRow) });
   } catch (e) {
+    // rollback si falla al generar comidas
     try {
       await supabase.from("meal_plan_days").delete().eq("meal_plan_id", planId);
     } catch {
@@ -618,6 +638,7 @@ export async function createWeekPlanAndLoad(userId: string, values: CreatePlanVa
   return { plans: merged, planIndex, planId, plan: vm, selectedDay: defaultSelectedDay(insertedRow) };
 }
 
+// borra plan + dias + cache y elige el siguiente del rango
 export async function deletePlanAndSelectNext(userId: string, planId: string, plans: MealPlanRow[], cursorStartIso: string, cursorEndIso: string) {
   const dbUserId = await resolveSupabaseProfileId(userId, false);
   if (!dbUserId) throw new Error("Could not resolve Supabase profile id.");
@@ -633,6 +654,7 @@ export async function deletePlanAndSelectNext(userId: string, planId: string, pl
   return { plans: remaining, ...selected };
 }
 
+// cambia una comida por otra que quepa en el presupuesto restante
 export async function replaceMealInPlan(
   userId: string,
   planId: string,
@@ -654,6 +676,7 @@ export async function replaceMealInPlan(
   const available = Math.max(0, Number(plan.budget ?? 0) - usedWithout);
   if (!(available > 0)) throw new Error("No remaining budget to replace this meal.");
 
+  // busca receta nueva respetando alergias y guardadas
   const profile = await ensureProfileForUser(userId);
   const savedIdsArr = await fetchSavedRecipeIds(dbUserId);
   const avoid = await buildAvoidSetsForProfile(profile);

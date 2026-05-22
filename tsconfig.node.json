@@ -1,26 +1,34 @@
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+// aqui dejamos claro que pasa en este paso
     "target": "ES2023",
     "lib": ["ES2023"],
+// guardamos esto para usarlo mas adelante
     "module": "ESNext",
     "types": ["node"],
+// revisamos datos antes de pintar la interfaz
     "skipLibCheck": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+// esta linea conecta con lo que ya tenemos en memoria
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
+// mostramos algo al usuario segun el estado actual
     "noEmit": true,
 
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
+// evitamos ejecutar esto si todavia no hay usuario
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
+// actualizamos la vista cuando llega la respuesta
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
+// mantenemos el codigo facil de leer para el equipo
   },
   "include": ["vite.config.ts"]
 }

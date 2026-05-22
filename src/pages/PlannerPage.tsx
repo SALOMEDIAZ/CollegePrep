@@ -1,6 +1,10 @@
+// importamos react y hooks para estado local y efectos al montar
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+// componente que dibuja la grilla de comidas de la semana
 import MealPlan from "../components/MealPlan/MealPlan";
+// hooks de redux para leer estado y disparar acciones
 import { useAppDispatch, useAppSelector } from "../store/store";
+// acciones y selectores del slice del meal plan
 import {
   bootstrapMealPlan,
   createWeekPlan,
@@ -12,17 +16,22 @@ import {
   selectMealPlanFilteredPlan,
   selectMealPlanHeaderTitle,
 } from "../store/slices/mealPlanSlice";
+// tipo de los valores que pide el modal al crear plan
 import type { CreatePlanValues } from "../types/mealPlan";
+// estilos de la pagina de recetas y meal plan
 import "../styles/recipes.css";
 
+// modal pesado: solo se descarga cuando hace falta
+// lazy hace que el bundle principal sea mas chico al inicio
 const CreatePlanModal = lazy(
   () => import("../components/MealPlan/CreatePlanModal"),
 );
 
-// página del planificador de comidas por semana
+// pagina del meal plan semanal (redux maneja casi todo)
 const MealPlanPage = () => {
+  // dispatch para mandar acciones al store de redux
   const dispatch = useAppDispatch();
-  // obtengo todos los datos del plan desde redux
+  // sacamos del slice todo lo que la ui necesita mostrar
   const {
     loading,
     error,
@@ -37,28 +46,33 @@ const MealPlanPage = () => {
     replacing,
     replacingTarget,
   } = useAppSelector(selectMealPlan);
-  // controlo si el modal de crear plan está abierto
+  // estado local: si el modal de crear plan esta abierto o cerrado
   const [modalOpen, setModalOpen] = useState(false);
 
-  // cargo el plan la primera vez que carga la página
+  // al entrar: trae plan activo o deja vacio para crear uno
+  // este efecto corre una vez cuando entras a /mealplan
   useEffect(() => {
+    // bootstrap intenta cargar el plan de la semana visible
     dispatch(bootstrapMealPlan());
   }, [dispatch]);
 
-  // obtengo la versión filtrada del plan (por día si estoy en modo día)
+  // plan filtrado segun si ves dia o semana completa
   const filteredPlan = useAppSelector(selectMealPlanFilteredPlan);
+  // titulo que va entre las flechas (rango de fechas)
   const headerTitle = useAppSelector(selectMealPlanHeaderTitle);
 
-  // calculo la fecha de hoy en formato ISO
+  // hoy en yyyy-mm-dd para seleccionar dia por defecto
+  // useMemo evita recalcular la fecha en cada render
   const todayIso = useMemo(() => {
     const d = new Date();
     const y = d.getFullYear();
+    // mes va de 0 a 11 por eso sumamos 1
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   }, []);
 
-  // si estoy cargando, muestro un loading
+  // si aun esta cargando datos mostramos pantalla simple de loading
   if (loading)
     return (
       <div className="recipes-page">
@@ -68,13 +82,16 @@ const MealPlanPage = () => {
       </div>
     );
 
+  // vista principal cuando ya termino de cargar
   return (
     <div className="recipes-page mp-page">
       <div className="recipes-wrap mp-wrap">
+        {/* si hubo error de supabase o red lo mostramos arriba */}
         {error ? <p className="recipes-error">{error}</p> : null}
 
-        {/* controles para navegar entre semanas */}
+        {/* flechas cambian la semana en el slice */}
         <div className="mp-navRow">
+          {/* flecha izquierda: semana anterior */}
           <button
             type="button"
             className="mp-arrowBtn"
@@ -82,7 +99,9 @@ const MealPlanPage = () => {
           >
             ‹
           </button>
+          {/* texto con el rango de la semana actual */}
           <div className="mp-navTitle">{headerTitle}</div>
+          {/* flecha derecha: semana siguiente */}
           <button
             type="button"
             className="mp-arrowBtn"
@@ -92,13 +111,16 @@ const MealPlanPage = () => {
           </button>
         </div>
 
-        {/* botones para cambiar entre vista de día y semana */}
+        {/* day muestra un solo dia; week la grilla completa */}
         <div className="mp-segment">
+          {/* boton para ver solo un dia del plan */}
           <button
             type="button"
             className={`mp-segBtn ${viewMode === "day" ? "mp-segBtn--active" : ""}`}
             onClick={() => {
+              // cambiamos el modo en redux a vista por dia
               dispatch(mealPlanActions.setViewMode("day"));
+              // si no habia dia elegido ponemos hoy o el inicio de semana
               if (!selectedDay) {
                 const d =
                   todayIso >= cursorStartIso && todayIso <= cursorEndIso
@@ -110,6 +132,7 @@ const MealPlanPage = () => {
           >
             Day
           </button>
+          {/* boton para ver los 7 dias en grilla */}
           <button
             type="button"
             className={`mp-segBtn ${viewMode === "week" ? "mp-segBtn--active" : ""}`}
@@ -119,11 +142,12 @@ const MealPlanPage = () => {
           </button>
         </div>
 
-        {/* aviso cuando estoy creando un plan */}
+        {/* banner mientras se crea un plan nuevo en segundo plano */}
         {creating ? (
           <div className="mp-creatingBanner">Creating plan…</div>
         ) : null}
 
+        {/* si no hay plan para esta semana mostramos boton de crear */}
         {!plan ? (
           <div className="mp-empty">
             <button
@@ -136,6 +160,7 @@ const MealPlanPage = () => {
           </div>
         ) : filteredPlan ? (
           <div>
+            {/* grilla de comidas con opcion de reemplazar plato */}
             <MealPlan
               plan={filteredPlan}
               replacingTarget={replacing ? replacingTarget : null}
@@ -143,6 +168,7 @@ const MealPlanPage = () => {
                 dispatch(replaceMeal(args));
               }}
             />
+            {/* acciones al final de la pagina */}
             <div className="mp-bottomActions">
               <button
                 type="button"
@@ -156,6 +182,7 @@ const MealPlanPage = () => {
           </div>
         ) : null}
 
+        {/* modal solo se monta cuando Suspense lo permite */}
         <Suspense fallback={null}>
           <CreatePlanModal
             open={modalOpen}

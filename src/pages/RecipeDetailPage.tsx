@@ -1,3 +1,4 @@
+// pagina de detalle de una receta: ingredientes, costo, guardar favorito
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import supabase from "../services/supabaseClient";
@@ -7,6 +8,7 @@ import { getMealById, type MealDbMeal } from "../services/api";
 import "../styles/recipes.css";
 import "../styles/recipeCard.css";
 
+// fila de ingredientes con precio en supabase
 type IngredientRow = { id: number; name: string | null; price: number | string | null };
 type IngredientIndex = {
   byNorm: Map<string, number>;

@@ -1,7 +1,9 @@
 {
   "files": [],
   "references": [
+// aqui dejamos claro que pasa en este paso
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
+// guardamos esto para usarlo mas adelante
   ]
 }

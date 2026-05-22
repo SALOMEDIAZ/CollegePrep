@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSelector, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { getSessionUserId } from "../../services/authService";
+// servicios que hablan con supabase y la logica de semanas
 import {
   createWeekPlanAndLoad,
   deletePlanAndSelectNext,
@@ -19,8 +20,10 @@ import {
 import type { RootState } from "../store";
 import type { CreatePlanValues, MealPlanDay, MealPlanState, MealPlanViewModel, ReplaceMealArgs, Weekday } from "../../types/mealPlan";
 
+// reexportamos helpers para usarlos desde componentes
 export { addDaysISO, formatDayTitle } from "../../services/mealPlanLogic";
 
+// convierte fecha iso (yyyy-mm-dd) a dia de la semana
 function weekdayFromISODate(iso: string): Weekday {
   const [y, m, d] = iso.split("-").map((x) => Number(x));
   const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
@@ -29,6 +32,7 @@ function weekdayFromISODate(iso: string): Weekday {
   return map[dt.getDay()] ?? "Mon";
 }
 
+// semana actual al abrir el planner
 const initialCursor = getWeekInfoForDate(new Date(), 0);
 
 const initialState: MealPlanState = {
@@ -50,10 +54,12 @@ const initialState: MealPlanState = {
   replacingTarget: null,
 };
 
+// carga inicial: usuario, lista de planes y plan de la semana visible
 export const bootstrapMealPlan = createAsyncThunk("mealPlan/bootstrap", async () => {
   const uid = await getSessionUserId();
   if (!uid) throw new Error("Not authenticated");
   const rows = await fetchAllPlans(uid);
+  // si no hay planes, dejamos el estado vacio pero con el cursor de semana
   if (!rows.length) {
     return {
       userId: uid,
@@ -78,12 +84,14 @@ export const bootstrapMealPlan = createAsyncThunk("mealPlan/bootstrap", async ()
   };
 });
 
+// mueve el cursor una semana adelante o atras
 export const shiftWeek = createAsyncThunk("mealPlan/shiftWeek", async (deltaWeeks: number, { getState }) => {
   const state = getState() as RootState;
   const userId = state.mealPlan.userId;
   const rows = state.mealPlan.plans;
   const nextStartIso = shiftWeekStartIso(state.mealPlan.cursorStartIso, deltaWeeks);
   const nextCursor = getWeekInfoFromStartIso(nextStartIso, new Date());
+  // sin sesion solo actualizamos fechas del cursor
   if (!userId) {
     return {
       planIndex: -1,
@@ -99,6 +107,7 @@ export const shiftWeek = createAsyncThunk("mealPlan/shiftWeek", async (deltaWeek
   return { ...selected, cursorStartIso: nextCursor.startIso, cursorEndIso: nextCursor.endIso, cursorTitle: nextCursor.title };
 });
 
+// cambia al plan por indice en la lista (tabs o selector)
 export const loadPlanByIndex = createAsyncThunk("mealPlan/loadByIndex", async (idx: number, { getState }) => {
   const state = getState() as RootState;
   const userId = state.mealPlan.userId;
@@ -111,6 +120,7 @@ export const loadPlanByIndex = createAsyncThunk("mealPlan/loadByIndex", async (i
   return { planIndex: idx, planId: row.id, plan, selectedDay: defaultSelectedDay(row) };
 });
 
+// crea un plan nuevo para la semana del cursor
 export const createWeekPlan = createAsyncThunk("mealPlan/createWeekPlan", async (values: CreatePlanValues, { getState }) => {
   const state = getState() as RootState;
   const userId = state.mealPlan.userId;
@@ -118,6 +128,7 @@ export const createWeekPlan = createAsyncThunk("mealPlan/createWeekPlan", async 
   return createWeekPlanAndLoad(userId, values, state.mealPlan.plans, state.mealPlan.cursorStartIso);
 });
 
+// borra el plan activo y selecciona el siguiente si hay
 export const deleteCurrentPlan = createAsyncThunk("mealPlan/deleteCurrentPlan", async (_, { getState }) => {
   const state = getState() as RootState;
   const userId = state.mealPlan.userId;
@@ -127,6 +138,7 @@ export const deleteCurrentPlan = createAsyncThunk("mealPlan/deleteCurrentPlan", 
   return deletePlanAndSelectNext(userId, planId, plans, state.mealPlan.cursorStartIso, state.mealPlan.cursorEndIso);
 });
 
+// sustituye una comida por otra receta en el plan actual
 export const replaceMeal = createAsyncThunk(
   "mealPlan/replaceMeal",
   async (args: ReplaceMealArgs, { getState }) => {
@@ -146,6 +158,7 @@ const mealPlanSlice = createSlice({
   name: "mealPlan",
   initialState,
   reducers: {
+    // vista semana completa o un solo dia
     setViewMode(state, action: PayloadAction<MealPlanState["viewMode"]>) {
       state.viewMode = action.payload;
     },
@@ -158,10 +171,12 @@ const mealPlanSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // empieza bootstrap: mostramos loading
       .addCase(bootstrapMealPlan.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
+      // bootstrap ok: guardamos planes y plan de la semana
       .addCase(bootstrapMealPlan.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
@@ -259,6 +274,7 @@ const mealPlanSlice = createSlice({
 export const mealPlanActions = mealPlanSlice.actions;
 export const selectMealPlan = (state: RootState) => state.mealPlan;
 
+// plan filtrado: semana entera o solo el dia seleccionado
 export const selectMealPlanFilteredPlan = createSelector([selectMealPlan], (s): MealPlanViewModel | null => {
   const plan = s.plan;
   if (!plan) return null;
@@ -270,11 +286,13 @@ export const selectMealPlanFilteredPlan = createSelector([selectMealPlan], (s): 
   return { ...plan, days: [dayVm] };
 });
 
+// titulo del header segun modo semana o dia
 export const selectMealPlanHeaderTitle = createSelector([selectMealPlan], (s) => {
   if (s.viewMode === "day" && s.selectedDay) return formatDayTitle(s.selectedDay);
   return s.plan?.title ?? s.cursorTitle;
 });
 
+// flechas anterior/siguiente: en semana mueve semanas, en dia mueve dias
 export const navigateMealPlan = createAsyncThunk("mealPlan/navigate", async (delta: number, { dispatch, getState }) => {
   const state = getState() as RootState;
   const mp = state.mealPlan;
@@ -297,6 +315,7 @@ export const navigateMealPlan = createAsyncThunk("mealPlan/navigate", async (del
     dispatch(mealPlanActions.setSelectedDay(next));
     return;
   }
+  // si el dia cae fuera de la semana, saltamos de semana
   const weekDelta = delta < 0 ? -1 : 1;
   await dispatch(shiftWeek(weekDelta));
   dispatch(mealPlanActions.setSelectedDay(next));

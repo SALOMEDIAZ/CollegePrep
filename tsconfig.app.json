@@ -1,28 +1,36 @@
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+// revisamos datos antes de pintar la interfaz
     "target": "ES2023",
     "useDefineForClassFields": true,
+// esta linea conecta con lo que ya tenemos en memoria
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
+// mostramos algo al usuario segun el estado actual
     "types": ["vite/client"],
     "skipLibCheck": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+// evitamos ejecutar esto si todavia no hay usuario
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
+// actualizamos la vista cuando llega la respuesta
     "noEmit": true,
     "jsx": "react-jsx",
 
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
+// mantenemos el codigo facil de leer para el equipo
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
+// seguimos con la siguiente parte del flujo
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
+// esto ayuda a que la pantalla no se rompa si algo falla
   },
   "include": ["src"]
 }

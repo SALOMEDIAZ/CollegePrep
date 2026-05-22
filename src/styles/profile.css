@@ -1,7 +1,9 @@
+/* estilos de la pagina de perfil del usuario */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* fondo con textura suave detras de todo el perfil */
 .profile-page-bg {
   min-height: 100vh;
   background-color: #faf9f6;

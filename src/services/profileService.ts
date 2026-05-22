@@ -3,7 +3,7 @@ import { signOut } from "firebase/auth";
 import type { ProfilePatch, ProfileRow } from "../types/profile";
 import { auth } from "./firebase";
 
-// COLUMNAS MINIMAS PARA /profile (MENOS DATOS = MAS RAPIDO)
+// columnas minimas para /profile (menos datos = mas rapido)
 const PROFILE_PAGE_SELECT =
   "id,full_name,username,age,location,university,career,avatar_url,budget_percent,allergies,vegetarian,vegan,gluten_free,lactose_free,omnivorous";
 
@@ -21,24 +21,29 @@ type AllergyKeywordRow = {
   keyword: string | null;
 };
 
+// valida que un string sea uuid de supabase
 function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
+// error cuando el esquema de bd no acepta uid de firebase
 function invalidSupabaseUserIdError() {
   return new Error(
     "Supabase expects UUID user ids in profiles.id, but Firebase returns non-UUID ids. Update your Supabase schema to support Firebase uid (text) or add a mapping table.",
   );
 }
 
+// error si el rpc no devolvio un uuid valido
 function invalidProfileIdFromRpcError() {
   return new Error("Could not resolve a valid profile id from Supabase RPC mapping.");
 }
 
-// CACHE: EVITA RPC DUPLICADOS AL CARGAR PROFILE
+// cache para no repetir rpc al abrir profile
 const profileIdCache = new Map<string, string>();
+// evita dos rpc iguales al mismo tiempo
 const profileIdInflight = new Map<string, Promise<string | null>>();
 
+// limpia cache al cerrar sesion o al cambiar de usuario
 export function clearProfileIdCache(firebaseUid?: string) {
   if (firebaseUid) {
     profileIdCache.delete(firebaseUid);
@@ -51,6 +56,7 @@ export function clearProfileIdCache(firebaseUid?: string) {
   profileIdInflight.clear();
 }
 
+// rpc: firebase uid -> uuid de profiles
 async function getProfileIdForFirebaseUid(firebaseUid: string): Promise<string | null> {
   const { data, error } = await supabase.rpc("get_profile_id_for_firebase", { p_firebase_uid: firebaseUid });
   if (error) throw error;
@@ -59,12 +65,13 @@ async function getProfileIdForFirebaseUid(firebaseUid: string): Promise<string |
   return isUuid(id) ? id : null;
 }
 
+// crea o devuelve el perfil en supabase para este uid de firebase
 async function ensureProfileIdForFirebaseUid(firebaseUid: string): Promise<string> {
   const { data, error } = await supabase.rpc("ensure_profile_for_firebase", { p_firebase_uid: firebaseUid });
   if (error) {
     const status = Number((error as { status?: unknown })?.status ?? 0);
     const code = String((error as { code?: unknown })?.code ?? "");
-    // EN DEV HAY LLAMADAS DUPLICADAS; SI CHOCA POR CONFLICT, REINTENTA LECTURA
+    // si choca por duplicado en dev, intenta leer el id existente
     if (status === 409 || code === "23505") {
       const existing = await getProfileIdForFirebaseUid(firebaseUid);
       if (existing) return existing;
@@ -76,7 +83,7 @@ async function ensureProfileIdForFirebaseUid(firebaseUid: string): Promise<strin
   return id;
 }
 
-// ESTO CONVIERTE FIREBASE UID (TEXTO) A PROFILE ID (UUID) DE SUPABASE
+// convierte uid de firebase (texto) al uuid de supabase
 export async function resolveSupabaseProfileId(userId: string, createIfMissing = true): Promise<string | null> {
   if (isUuid(userId)) return userId;
   if (!userId.trim()) return null;
@@ -178,6 +185,7 @@ export async function ensureProfileRow(userId: string, knownDbUserId?: string | 
   if (error) return { profile: null as ProfileRow | null, error };
   if (data) return { profile: data as ProfileRow, error: null as null };
 
+  // si no existe fila, inserta una vacia
   const { data: inserted, error: insErr } = await supabase
     .from("profiles")
     .insert({ id: dbUserId })
@@ -197,7 +205,7 @@ export async function ensureProfileRow(userId: string, knownDbUserId?: string | 
   return { profile: inserted as ProfileRow, error: null as null };
 }
 
-// UNA SOLA ENTRADA PARA /profile (RPC + SELECT)
+// una sola llamada para cargar /profile
 export async function loadProfilePageData(firebaseUid: string) {
   const dbUserId = await resolveSupabaseProfileId(firebaseUid, true);
   if (!dbUserId) {
@@ -221,7 +229,6 @@ export async function upsertProfile(userId: string, patch: ProfilePatch) {
 export async function persistAvatar(file: File, userId: string) {
   const dbUserId = await resolveSupabaseProfileId(userId, true);
   if (!dbUserId) return { error: invalidSupabaseUserIdError() };
-  // ESTO EVITA PROBLEMAS CON EXTENSIONES EN MAYUSCULA EN STORAGE
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${dbUserId}/avatar.${ext}`;
   const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
@@ -261,7 +268,7 @@ function currentWeekPlanRow<T extends { start_date: string; end_date: string }>(
   return rows[idx] ?? null;
 }
 
-// MISMO % QUE MEAL PLAN: usa loadPlanViewModel (plan.used / plan.budget)
+// % de presupuesto usado esta semana (mismo calculo que meal plan)
 export async function fetchWeeklyBudgetUsedPercent(
   userId: string,
   knownDbUserId?: string | null,
@@ -278,7 +285,7 @@ export async function fetchWeeklyBudgetUsedPercent(
     const plan = await loadPlanViewModel(row);
     if (!(plan.budget > 0)) return 0;
     const pct = Math.min(100, Math.round((plan.used / plan.budget) * 100));
-    // GUARDA EN profiles PARA NO QUEDAR DESACTUALIZADO (EJ. 75 FIJO)
+    // guarda en profiles para que no quede un % viejo en la ui
     void supabase.from("profiles").update({ budget_percent: pct }).eq("id", dbUserId);
     return pct;
   } catch (e) {

@@ -1,8 +1,12 @@
+// links de react router para navegar sin recargar la pagina
 import { Link } from "react-router-dom";
+// estilos propios de la landing (hero, secciones, footer)
 import "../styles/landing.css";
 
 // imagen del hero de la landing
+// helper para rutas de imagenes en public/assets/main
 const asset = (f: string) => `/assets/main/${encodeURIComponent(f)}`;
+// foto grande del hero desde unsplash
 const LANDING_HERO =
   "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80";
 

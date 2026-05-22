@@ -1,9 +1,11 @@
+// tarjeta de receta en el listado: foto, tiempos y costo estimado
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import supabase from "../../services/supabaseClient";
 import { getMealById, type MealDbMeal } from "../../services/api";
 import "../../styles/recipeCard.css";
 
+// puede recibir el meal completo o solo el id para cargarlo
 type RecipeCardProps =
   | { meal: MealDbMeal; mealId?: never }
   | { meal?: never; mealId: string };

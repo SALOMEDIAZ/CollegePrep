@@ -1,1252 +1,1662 @@
 @tailwind base;
 @tailwind components;
+/* regla especial de css */
 @tailwind utilities;
 
 .recipes-page {
   min-height: 100vh;
+  /* detalle visual */
   background: #ffffff;
   color: #222;
+  /* detalle visual */
   position: relative;
   overflow: hidden;
+/* fin del bloque css */
 }
 
 .recipes-page::before {
   content: "";
+  /* detalle visual */
   position: fixed;
   inset: 0;
+  /* detalle visual */
   background-color: #8f370b;
   opacity: 0.25;
+  /* detalle visual */
   pointer-events: none;
   z-index: 0;
+  /* detalle visual */
   -webkit-mask-image: url("/assets/images-icons/textura.png"), url("/assets/images-icons/Textura.png");
   -webkit-mask-repeat: repeat, repeat;
+  /* detalle visual */
   -webkit-mask-size: 900px auto, 900px auto;
   -webkit-mask-position: 0 0, 0 0;
+  /* detalle visual */
   mask-image: url("/assets/images-icons/textura.png"), url("/assets/images-icons/Textura.png");
   mask-repeat: repeat, repeat;
+  /* detalle visual */
   mask-size: 900px auto, 900px auto;
   mask-position: 0 0, 0 0;
+/* fin del bloque css */
 }
 
 .recipes-wrap {
   width: 100%;
+  /* detalle visual */
   max-width: 1180px;
   margin: 0 auto;
+  /* detalle visual */
   padding: 28px 18px 56px;
   position: relative;
+  /* detalle visual */
   z-index: 1;
 }
 
 .recipes-content {
   position: relative;
+  /* detalle visual */
   z-index: 1;
 }
 
 .recipes-title {
   font-size: 38px;
+  /* detalle visual */
   line-height: 1.05;
   letter-spacing: -0.02em;
+  /* detalle visual */
   font-weight: 600;
   margin: 0;
+  /* detalle visual */
   color: #7aa200;
 }
 
 .recipes-subrow {
   display: flex;
+  /* detalle visual */
   gap: 14px;
   align-items: center;
+  /* detalle visual */
   flex-wrap: wrap;
   margin-top: 14px;
+/* fin del bloque css */
 }
 
 .recipes-filterbar {
   display: flex;
+  /* detalle visual */
   gap: 10px;
   flex-wrap: wrap;
+/* fin del bloque css */
 }
 
 .recipes-chip {
   appearance: none;
+  /* detalle visual */
   border: 1px solid #cfe1a1;
   background: #ffffff;
+  /* detalle visual */
   color: #6b7b3a;
   padding: 6px 14px;
+  /* detalle visual */
   border-radius: 999px;
   font-size: 12px;
+  /* detalle visual */
   line-height: 1;
   font-weight: 600;
+/* fin del bloque css */
 }
 
 .recipes-chip[aria-pressed="true"] {
   background: #eff7dc;
+  /* detalle visual */
   border-color: #a9cc4a;
   color: #4b5b1b;
+/* fin del bloque css */
 }
 
 .recipes-search {
   display: flex;
+  /* detalle visual */
   gap: 10px;
   align-items: center;
+  /* detalle visual */
   flex: 1;
   min-width: 240px;
+/* fin del bloque css */
 }
 
 .recipes-search-input {
   flex: 1;
+  /* detalle visual */
   min-width: 220px;
   border: 1px solid #e5e7eb;
+  /* detalle visual */
   border-radius: 999px;
   padding: 10px 14px;
+  /* detalle visual */
   background: #fff;
   outline: none;
+/* fin del bloque css */
 }
 
 .recipes-search-input:focus {
   border-color: #b8d36b;
+  /* detalle visual */
   box-shadow: 0 0 0 4px rgba(184, 211, 107, 0.22);
 }
 
 .recipes-search-btn {
   border: 1px solid #b8d36b;
+  /* detalle visual */
   background: #b8d36b;
   color: #1f2a0e;
+  /* detalle visual */
   border-radius: 999px;
   padding: 10px 16px;
+  /* detalle visual */
   font-weight: 700;
 }
 
 .recipes-search-btn:disabled {
   opacity: 0.6;
+/* fin del bloque css */
 }
 
 .recipes-grid {
   display: grid;
+  /* detalle visual */
   grid-template-columns: repeat(3, 366px);
   justify-content: space-between;
+  /* detalle visual */
   gap: 22px;
   margin-top: 22px;
+/* fin del bloque css */
 }
 
 @media (max-width: 1020px) {
   .recipes-grid {
+    /* detalle visual */
     grid-template-columns: repeat(2, 366px);
     justify-content: center;
+  /* fin del bloque css */
   }
 }
 
 @media (max-width: 640px) {
   .recipes-wrap {
+    /* detalle visual */
     padding: 18px 14px 96px;
   }
 
   .recipes-title {
     font-size: 28px;
+  /* fin del bloque css */
   }
 
   .recipes-subrow {
     flex-direction: column;
+    /* detalle visual */
     align-items: stretch;
     gap: 10px;
+  /* fin del bloque css */
   }
 
   .recipes-filterbar {
     display: none;
+  /* fin del bloque css */
   }
 
   .recipes-search {
     flex: none;
+    /* detalle visual */
     min-width: 0;
     width: 100%;
+  /* fin del bloque css */
   }
 
   .recipes-search-input {
     min-width: 0;
+    /* detalle visual */
     background: #f3f4f6;
   }
 
   .recipes-search-btn {
     display: none;
+  /* fin del bloque css */
   }
 
   .recipes-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* detalle visual */
     justify-content: stretch;
     gap: 14px;
+  /* fin del bloque css */
   }
 }
 
 @media (max-width: 360px) {
   .recipes-grid {
+    /* detalle visual */
     grid-template-columns: minmax(0, 1fr);
   }
+/* fin del bloque css */
 }
 
 .recipes-status {
   margin-top: 14px;
+  /* detalle visual */
   font-size: 14px;
   color: #52525b;
+/* fin del bloque css */
 }
 
 .recipes-error {
   margin-top: 14px;
+  /* detalle visual */
   font-size: 14px;
   color: #b42318;
+/* fin del bloque css */
 }
 
 .recipe-detail-wrap {
   max-width: 1120px;
+/* fin del bloque css */
 }
 
 .recipe-detail-top {
   position: relative;
+/* fin del bloque css */
 }
 
 .recipe-detail-mobileHeader {
   display: none;
+/* fin del bloque css */
 }
 
 .recipe-detail-metaGrid {
   display: flex;
+  /* detalle visual */
   flex-direction: column;
   gap: 10px;
+/* fin del bloque css */
 }
 
 .recipe-detail-back {
   appearance: none;
+  /* detalle visual */
   border: 0;
   background: transparent;
+  /* detalle visual */
   color: #111827;
   font-size: 54px;
+  /* detalle visual */
   line-height: 1;
   padding: 8px 10px;
+  /* detalle visual */
   cursor: pointer;
   position: absolute;
+  /* detalle visual */
   left: 0;
   top: 40px;
+  /* detalle visual */
   z-index: 2;
 }
 
 .recipe-detail-hero {
   display: grid;
+  /* detalle visual */
   grid-template-columns: 420px 1fr;
   gap: 42px;
+  /* detalle visual */
   align-items: start;
   padding-top: 20px;
+  /* detalle visual */
   padding-left: 84px;
 }
 
 .recipe-detail-heroMedia {
   background: #b8d36b;
+  /* detalle visual */
   width: 420px;
   height: 520px;
+  /* detalle visual */
   border-radius: 0;
   position: relative;
+  /* detalle visual */
   overflow: visible;
 }
 
 .recipe-detail-heroImg {
   position: absolute;
+  /* detalle visual */
   left: 50%;
   top: 50%;
+  /* detalle visual */
   transform: translate(-50%, -50%) scale(1.04);
   width: 460px;
+  /* detalle visual */
   height: 460px;
   max-width: none;
+  /* detalle visual */
   object-fit: cover;
   border-radius: 0;
+  /* detalle visual */
   background: transparent;
   display: block;
+/* fin del bloque css */
 }
 
 .recipe-detail-heroInfo {
   padding-top: 40px;
+/* fin del bloque css */
 }
 
 .recipe-detail-title {
   margin: 0;
+  /* detalle visual */
   font-size: 64px;
   line-height: 1.02;
+  /* detalle visual */
   font-weight: 500;
   letter-spacing: -0.02em;
+/* fin del bloque css */
 }
 
 .recipe-detail-titleFirst {
   color: #111827;
+/* fin del bloque css */
 }
 
 .recipe-detail-titleRest {
   color: #7aa200;
+/* fin del bloque css */
 }
 
 .recipe-detail-meta {
   margin-top: 26px;
+  /* detalle visual */
   display: flex;
   flex-direction: column;
+  /* detalle visual */
   gap: 10px;
   align-items: flex-start;
+/* fin del bloque css */
 }
 
 .recipe-detail-actions {
   display: flex;
+  /* detalle visual */
   gap: 12px;
   margin-top: 10px;
+/* fin del bloque css */
 }
 
 .recipe-detail-actionBtn {
   appearance: none;
+  /* detalle visual */
   border: 0;
   background: transparent;
+  /* detalle visual */
   color: #1f2937;
   padding: 6px;
+  /* detalle visual */
   cursor: pointer;
 }
 
 .recipe-detail-actionBtn svg {
   width: 36px;
+  /* detalle visual */
   height: 36px;
   max-width: 36px;
+  /* detalle visual */
   max-height: 36px;
 }
 
 .recipe-detail-actionBtn:disabled {
   opacity: 0.6;
+  /* detalle visual */
   cursor: not-allowed;
 }
 
 .recipe-detail-actionBtn--saved {
   color: #16a34a;
+/* fin del bloque css */
 }
 
 .recipe-detail-section {
   margin-top: 28px;
+/* fin del bloque css */
 }
 
 .recipe-detail-h {
   text-align: center;
+  /* detalle visual */
   margin: 0;
   font-size: 22px;
+  /* detalle visual */
   font-weight: 700;
   color: #3f3f46;
+/* fin del bloque css */
 }
 
 .recipe-detail-ingredients {
   margin-top: 14px;
+  /* detalle visual */
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* detalle visual */
   gap: 14px;
 }
 
 .recipe-detail-ingredientCard {
   border: 2px solid #3f3f46;
+  /* detalle visual */
   background: #ffffff;
   border-radius: 22px;
+  /* detalle visual */
   padding: 10px 18px;
   display: grid;
+  /* detalle visual */
   grid-template-columns: 38px 1fr auto;
   align-items: center;
+  /* detalle visual */
   gap: 14px;
   height: 63px;
+  /* detalle visual */
   max-height: 63px;
   overflow: hidden;
+/* fin del bloque css */
 }
 
 .recipe-detail-ingredientImg {
   width: 38px;
+  /* detalle visual */
   height: 38px;
   object-fit: cover;
+  /* detalle visual */
   border-radius: 10px;
   background: #ffffff;
+  /* detalle visual */
   flex: 0 0 auto;
 }
 
 .recipe-detail-ingredientText {
   flex: 1 1 auto;
+  /* detalle visual */
   min-width: 0;
 }
 
 .recipe-detail-ingredientName {
   font-size: 18px;
+  /* detalle visual */
   line-height: 1.05;
   font-weight: 600;
+  /* detalle visual */
   color: #3f3f46;
   white-space: nowrap;
+  /* detalle visual */
   overflow: hidden;
   text-overflow: ellipsis;
+/* fin del bloque css */
 }
 
 .recipe-detail-ingredientPrice {
   font-size: 14px;
+  /* detalle visual */
   line-height: 1.05;
   color: #3f3f46;
+  /* detalle visual */
   margin-top: 6px;
 }
 
 .recipe-detail-ingredientMeasure {
   font-size: 18px;
+  /* detalle visual */
   color: #3f3f46;
   flex: 0 0 auto;
+  /* detalle visual */
   white-space: nowrap;
 }
 
 .recipe-detail-steps {
   margin-top: 14px;
+  /* detalle visual */
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* detalle visual */
   gap: 14px;
 }
 
 .recipe-detail-stepCard {
   background: #dfeab8;
+  /* detalle visual */
   border-radius: 12px;
   padding: 14px 16px;
+  /* detalle visual */
   min-height: 92px;
   min-width: 0;
+/* fin del bloque css */
 }
 
 .recipe-detail-stepTitle {
   font-size: 12px;
+  /* detalle visual */
   font-weight: 800;
   color: #4b5b1b;
+/* fin del bloque css */
 }
 
 .recipe-detail-stepBody {
   margin-top: 6px;
+  /* detalle visual */
   font-size: 13px;
   line-height: 1.25;
+  /* detalle visual */
   color: #334155;
   overflow-wrap: anywhere;
+  /* detalle visual */
   word-break: break-word;
 }
 
 @media (max-width: 1020px) {
   .recipe-detail-hero {
+    /* detalle visual */
     grid-template-columns: 1fr;
     padding-left: 40px;
+    /* detalle visual */
     gap: 20px;
   }
 
   .recipe-detail-back {
     top: 10px;
+    /* detalle visual */
     left: 0;
   }
 
   .recipe-detail-heroMedia {
     margin-left: 0;
+  /* fin del bloque css */
   }
 
   .recipe-detail-heroImg {
     width: 390px;
+    /* detalle visual */
     height: 390px;
     transform: translate(-50%, -50%) scale(1.03);
+  /* fin del bloque css */
   }
 
   .recipe-detail-heroInfo {
     padding-top: 0;
+  /* fin del bloque css */
   }
 
   .recipe-detail-title {
     font-size: 44px;
+  /* fin del bloque css */
   }
 
   .recipe-detail-ingredients {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* fin del bloque css */
   }
 
   .recipe-detail-steps {
     grid-template-columns: 1fr;
+  /* fin del bloque css */
   }
 }
 
 @media (max-width: 640px) {
   .recipe-detail-wrap {
+    /* detalle visual */
     max-width: none;
   }
 
   .recipe-detail-mobileHeader {
     display: grid;
+    /* detalle visual */
     grid-template-columns: 44px 1fr 44px;
     align-items: center;
+    /* detalle visual */
     gap: 8px;
     margin: 0 0 10px;
+  /* fin del bloque css */
   }
 
   .recipe-detail-mobileBack {
     appearance: none;
+    /* detalle visual */
     border: 0;
     background: transparent;
+    /* detalle visual */
     color: #111827;
     width: 44px;
+    /* detalle visual */
     height: 44px;
     font-size: 44px;
+    /* detalle visual */
     line-height: 1;
     padding: 0;
+    /* detalle visual */
     display: grid;
     place-items: center;
+    /* detalle visual */
     cursor: pointer;
   }
 
   .recipe-detail-mobileTitle {
     text-align: center;
+    /* detalle visual */
     font-size: 24px;
     font-weight: 800;
+    /* detalle visual */
     color: #14532d;
     line-height: 1.1;
+    /* detalle visual */
     overflow: hidden;
     text-overflow: ellipsis;
+    /* detalle visual */
     white-space: nowrap;
   }
 
   .recipe-detail-back {
     display: none;
+  /* fin del bloque css */
   }
 
   .recipe-detail-hero {
     padding: 0;
+    /* detalle visual */
     gap: 0;
   }
 
   .recipe-detail-heroMedia {
     width: 100%;
+    /* detalle visual */
     height: 240px;
     margin: 0;
+    /* detalle visual */
     background: transparent;
     overflow: hidden;
+  /* fin del bloque css */
   }
 
   .recipe-detail-heroImg {
     position: static;
+    /* detalle visual */
     transform: none;
     width: 100%;
+    /* detalle visual */
     height: 100%;
     max-width: 100%;
+    /* detalle visual */
     border-radius: 0;
     object-fit: cover;
+  /* fin del bloque css */
   }
 
   .recipe-detail-heroInfo {
     padding-top: 0;
+  /* fin del bloque css */
   }
 
   .recipe-detail-title {
     display: none;
+  /* fin del bloque css */
   }
 
   .recipe-detail-meta {
     margin-top: 10px;
+    /* detalle visual */
     align-items: stretch;
     gap: 10px;
+  /* fin del bloque css */
   }
 
   .recipe-detail-actions {
     order: -1;
+    /* detalle visual */
     justify-content: center;
     gap: 80px;
+    /* detalle visual */
     margin-top: 0;
     padding: 10px 0 12px;
+    /* detalle visual */
     border-bottom: 1px solid rgba(20, 83, 45, 0.35);
   }
 
   .recipe-detail-actionBtn {
     display: flex;
+    /* detalle visual */
     flex-direction: column;
     align-items: center;
+    /* detalle visual */
     gap: 6px;
     padding: 8px 6px;
+  /* fin del bloque css */
   }
 
   .recipe-detail-actionBtn::after {
     content: attr(data-label);
+    /* detalle visual */
     font-size: 14px;
     font-weight: 700;
+    /* detalle visual */
     color: #1f2937;
   }
 
   .recipe-detail-metaGrid {
     padding-top: 10px;
+    /* detalle visual */
     display: grid;
     grid-template-columns: 1fr 1fr;
+    /* detalle visual */
     gap: 14px 18px;
   }
 
   .recipe-detail-metaGrid .recipe-card__metaRow {
     display: contents;
+  /* fin del bloque css */
   }
 
   .recipe-detail-metaGrid .recipe-pill {
     border: 0;
+    /* detalle visual */
     background: transparent;
     padding: 0;
+    /* detalle visual */
     border-radius: 0;
     font-size: 14px;
+    /* detalle visual */
     font-weight: 600;
     color: #111827;
+    /* detalle visual */
     max-height: none;
     overflow: visible;
+    /* detalle visual */
     white-space: nowrap;
   }
 
   .recipe-detail-metaGrid .recipe-pill__icon {
     width: 22px;
+    /* detalle visual */
     height: 22px;
   }
 
   .recipe-detail-metaGrid .recipe-pill--cost {
     grid-column: 1 / -1;
+    /* detalle visual */
     font-weight: 800;
     color: #14532d;
+  /* fin del bloque css */
   }
 
   .recipe-detail-section {
     margin-top: 18px;
+  /* fin del bloque css */
   }
 
   .recipe-detail-h {
     text-align: left;
+    /* detalle visual */
     font-style: italic;
     font-size: 28px;
+    /* detalle visual */
     font-weight: 900;
     color: #14532d;
+  /* fin del bloque css */
   }
 
   .recipe-detail-ingredients {
     grid-template-columns: 1fr;
+  /* fin del bloque css */
   }
 
   .recipe-detail-ingredientCard {
     border: 0;
+    /* detalle visual */
     border-radius: 0;
     padding: 12px 0;
+    /* detalle visual */
     height: auto;
     max-height: none;
+    /* detalle visual */
     grid-template-columns: 56px 1fr auto;
     border-bottom: 1px solid rgba(20, 83, 45, 0.25);
+  /* fin del bloque css */
   }
 
   .recipe-detail-ingredientImg {
     width: 56px;
+    /* detalle visual */
     height: 56px;
     border-radius: 14px;
+  /* fin del bloque css */
   }
 
   .recipe-detail-ingredientName {
     font-size: 18px;
+    /* detalle visual */
     font-weight: 900;
     color: #14532d;
+  /* fin del bloque css */
   }
 
   .recipe-detail-ingredientPrice {
     color: #14532d;
+    /* detalle visual */
     font-weight: 700;
   }
 
   .recipe-detail-ingredientMeasure {
     font-size: 18px;
+    /* detalle visual */
     font-weight: 800;
     color: #14532d;
+  /* fin del bloque css */
   }
 }
 
 .mp-wrap {
   max-width: 1120px;
+/* fin del bloque css */
 }
 
 .mp-empty {
   min-height: auto;
+  /* detalle visual */
   display: flex;
   flex-direction: column;
+  /* detalle visual */
   align-items: center;
   justify-content: flex-start;
+  /* detalle visual */
   gap: 12px;
   padding: 18px 0 0;
+/* fin del bloque css */
 }
 
 .mp-ring {
   width: 110px;
+  /* detalle visual */
   height: 110px;
   border-radius: 999px;
+  /* detalle visual */
   background: conic-gradient(#f97316 0 0, #e5e7eb 0 360deg);
   display: grid;
+  /* detalle visual */
   place-items: center;
   border: 1px solid #e5e7eb;
+/* fin del bloque css */
 }
 
 .mp-ringInner {
   width: 86px;
+  /* detalle visual */
   height: 86px;
   border-radius: 999px;
+  /* detalle visual */
   background: #ffffff;
   display: grid;
+  /* detalle visual */
   place-items: center;
   font-weight: 800;
+  /* detalle visual */
   color: #f97316;
   font-size: 22px;
+/* fin del bloque css */
 }
 
 .mp-emptyTitle {
   font-size: 28px;
+  /* detalle visual */
   color: #3f3f46;
 }
 
 .mp-primaryBtn {
   appearance: none;
+  /* detalle visual */
   border: 0;
   background: #86a600;
+  /* detalle visual */
   color: #ffffff;
   padding: 12px 18px;
+  /* detalle visual */
   border-radius: 14px;
   font-weight: 700;
+  /* detalle visual */
   cursor: pointer;
 }
 
 .mp-primaryBtn:disabled {
   opacity: 0.6;
+  /* detalle visual */
   cursor: not-allowed;
 }
 
 .mp-modalOverlay {
   position: fixed;
+  /* detalle visual */
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
+  /* detalle visual */
   display: grid;
   place-items: center;
+  /* detalle visual */
   padding: 18px;
   z-index: 50;
+/* fin del bloque css */
 }
 
 .mp-modal {
   width: min(460px, 92vw);
+  /* detalle visual */
   background: #ffffff;
   border-radius: 26px;
+  /* detalle visual */
   padding: 22px 22px 18px;
   position: relative;
+  /* detalle visual */
   max-height: min(860px, 92vh);
   overflow-y: auto;
+/* fin del bloque css */
 }
 
 .mp-modal .mp-primaryBtn {
   display: block;
+  /* detalle visual */
   margin: 16px auto 0;
 }
 
 .mp-modalClose {
   appearance: none;
+  /* detalle visual */
   border: 0;
   background: transparent;
+  /* detalle visual */
   position: absolute;
   left: 14px;
+  /* detalle visual */
   top: 10px;
   font-size: 38px;
+  /* detalle visual */
   line-height: 1;
   color: #71717a;
+  /* detalle visual */
   cursor: pointer;
 }
 
 .mp-modalTitle {
   text-align: center;
+  /* detalle visual */
   font-size: 28px;
   font-weight: 500;
+  /* detalle visual */
   color: #86a600;
   margin-top: 10px;
+/* fin del bloque css */
 }
 
 .mp-modalSection {
   margin-top: 14px;
+/* fin del bloque css */
 }
 
 .mp-modalSectionTitle {
   text-align: center;
+  /* detalle visual */
   font-size: 22px;
   font-weight: 800;
+  /* detalle visual */
   color: #3f3f46;
   margin-bottom: 10px;
+/* fin del bloque css */
 }
 
 .mp-slider {
   width: 100%;
+  /* detalle visual */
   accent-color: #86a600;
 }
 
 .mp-modalValue {
   text-align: right;
+  /* detalle visual */
   font-size: 18px;
   font-weight: 700;
+  /* detalle visual */
   color: #111827;
   margin-top: 8px;
+/* fin del bloque css */
 }
 
 .mp-modalPrefs {
   display: grid;
+  /* detalle visual */
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  /* detalle visual */
   align-items: center;
   margin-top: 10px;
+/* fin del bloque css */
 }
 
 .mp-checkboxRow {
   display: flex;
+  /* detalle visual */
   gap: 10px;
   align-items: center;
+  /* detalle visual */
   font-size: 18px;
   color: #111827;
+/* fin del bloque css */
 }
 
 .mp-checkboxRow input {
   width: 22px;
+  /* detalle visual */
   height: 22px;
   accent-color: #86a600;
+/* fin del bloque css */
 }
 
 .mp-modalHint {
   margin-top: 8px;
+  /* detalle visual */
   text-align: center;
   color: #52525b;
+  /* detalle visual */
   font-size: 14px;
 }
 
 .mp-dayGrid {
   display: grid;
+  /* detalle visual */
   grid-template-columns: 70px repeat(3, 1fr);
   gap: 10px;
+  /* detalle visual */
   align-items: center;
 }
 
 .mp-dayGridHead {
   text-align: center;
+  /* detalle visual */
   font-weight: 700;
   color: #3f3f46;
+/* fin del bloque css */
 }
 
 .mp-dayRow {
   display: contents;
+/* fin del bloque css */
 }
 
 .mp-dayCell {
   height: 40px;
+  /* detalle visual */
   display: grid;
   place-items: center;
+/* fin del bloque css */
 }
 
 .mp-dayLabel {
   justify-self: start;
+  /* detalle visual */
   padding-left: 8px;
   font-weight: 700;
+  /* detalle visual */
   color: #86a600;
 }
 
 .mp-dayCheck input {
   width: 26px;
+  /* detalle visual */
   height: 26px;
   accent-color: #86a600;
+/* fin del bloque css */
 }
 
 .mp-plan {
   padding-top: 14px;
+/* fin del bloque css */
 }
 
 .mp-budgetBar {
   position: relative;
+  /* detalle visual */
   height: 34px;
   border-radius: 999px;
+  /* detalle visual */
   background: #e5e7eb;
   overflow: hidden;
+/* fin del bloque css */
 }
 
 .mp-budgetBarFill {
   height: 100%;
+  /* detalle visual */
   background: #dc2626;
 }
 
 .mp-budgetBarText {
   position: absolute;
+  /* detalle visual */
   inset: 0;
   display: grid;
+  /* detalle visual */
   place-items: center;
   font-weight: 800;
+  /* detalle visual */
   color: transparent;
   background: linear-gradient(
+    /* detalle visual */
     90deg,
     #ffffff 0,
+    /* detalle visual */
     #ffffff var(--mp-fill, 0%),
     #111827 var(--mp-fill, 0%),
+    /* detalle visual */
     #111827 100%
   );
+  /* detalle visual */
   -webkit-background-clip: text;
   background-clip: text;
+/* fin del bloque css */
 }
 
 .mp-budgetBarText--mobile {
   display: none;
+/* fin del bloque css */
 }
 
 .mp-mobile {
   display: none;
+/* fin del bloque css */
 }
 
 .mp-weekTitle {
   margin-top: 18px;
+  /* detalle visual */
   font-size: 28px;
   font-weight: 700;
+  /* detalle visual */
   color: #111827;
 }
 
 .mp-navRow {
   margin-top: 10px;
+  /* detalle visual */
   display: grid;
   grid-template-columns: 120px auto 120px;
+  /* detalle visual */
   align-items: center;
   gap: 0;
+  /* detalle visual */
   justify-content: center;
   width: 100%;
+/* fin del bloque css */
 }
 
 .mp-arrowBtn {
   appearance: none;
+  /* detalle visual */
   border: 0;
   background: transparent;
+  /* detalle visual */
   color: #14532d;
   width: 120px;
+  /* detalle visual */
   height: 44px;
   font-size: 58px;
+  /* detalle visual */
   line-height: 1;
   cursor: pointer;
+  /* detalle visual */
   padding: 0;
   display: grid;
+  /* detalle visual */
   place-items: center;
   transform: translateY(-2px);
+/* fin del bloque css */
 }
 
 .mp-arrowBtn:disabled {
   opacity: 0.25;
+  /* detalle visual */
   cursor: not-allowed;
 }
 
 .mp-navTitle {
   text-align: center;
+  /* detalle visual */
   font-size: 22px;
   font-weight: 800;
+  /* detalle visual */
   color: #14532d;
 }
 
 .mp-segment {
   margin: 10px auto 0;
+  /* detalle visual */
   background: #e5e7eb;
   border-radius: 999px;
+  /* detalle visual */
   padding: 4px;
   width: 220px;
+  /* detalle visual */
   display: grid;
   grid-template-columns: 1fr 1fr;
+  /* detalle visual */
   gap: 4px;
 }
 
 .mp-segBtn {
   appearance: none;
+  /* detalle visual */
   border: 0;
   background: transparent;
+  /* detalle visual */
   color: #4b5563;
   padding: 8px 10px;
+  /* detalle visual */
   border-radius: 999px;
   font-weight: 800;
+  /* detalle visual */
   cursor: pointer;
 }
 
 .mp-segBtn--active {
   background: #ffffff;
+  /* detalle visual */
   color: #111827;
 }
 
 .mp-days {
   margin-top: 16px;
+  /* detalle visual */
   display: flex;
   flex-direction: column;
+  /* detalle visual */
   gap: 18px;
 }
 
 .mp-dayBlock {
   border-top: 2px solid #86a600;
+  /* detalle visual */
   padding-top: 14px;
 }
 
 .mp-dayTitle {
   font-size: 22px;
+  /* detalle visual */
   font-weight: 900;
   color: #111827;
+  /* detalle visual */
   font-style: italic;
 }
 
 .mp-mealGroups {
   margin-top: 10px;
+  /* detalle visual */
   display: flex;
   flex-direction: column;
+  /* detalle visual */
   gap: 14px;
 }
 
 .mp-mealGroup {
   padding-bottom: 12px;
+  /* detalle visual */
   border-bottom: 1px solid rgba(20, 83, 45, 0.35);
 }
 
 .mp-mealGroupHeader {
   display: flex;
+  /* detalle visual */
   align-items: baseline;
   justify-content: space-between;
+  /* detalle visual */
   gap: 10px;
 }
 
 .mp-mealGroupTitle {
   font-size: 18px;
+  /* detalle visual */
   font-weight: 900;
   color: #111827;
+  /* detalle visual */
   font-style: italic;
 }
 
 .mp-mealGroupCost {
   font-size: 14px;
+  /* detalle visual */
   font-weight: 800;
   color: #14532d;
+/* fin del bloque css */
 }
 
 .mp-dayHeaderTitle {
   font-size: 20px;
+  /* detalle visual */
   font-weight: 800;
   color: #111827;
+/* fin del bloque css */
 }
 
 .mp-dayHeaderDate {
   font-weight: 600;
+  /* detalle visual */
   color: #52525b;
   margin-left: 6px;
+/* fin del bloque css */
 }
 
 .mp-mealRow {
   margin-top: 12px;
+  /* detalle visual */
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* detalle visual */
   gap: 12px;
 }
 
 .mp-mealCard {
   background: #ffffff;
+  /* detalle visual */
   color: #111827;
   border-radius: 18px;
+  /* detalle visual */
   border: 2px solid #86a600;
   padding: 12px;
+  /* detalle visual */
   display: grid;
   grid-template-columns: 56px 1fr auto;
+  /* detalle visual */
   gap: 12px;
   align-items: center;
+  /* detalle visual */
   min-width: 0;
 }
 
 .mp-mealImg {
   width: 56px;
+  /* detalle visual */
   height: 56px;
   border-radius: 14px;
+  /* detalle visual */
   object-fit: cover;
   background: #111827;
+/* fin del bloque css */
 }
 
 .mp-mealInfo {
   min-width: 0;
+/* fin del bloque css */
 }
 
 .mp-mealType {
   font-size: 12px;
+  /* detalle visual */
   font-weight: 800;
   color: #86a600;
+/* fin del bloque css */
 }
 
 .mp-mealName {
   margin-top: 2px;
+  /* detalle visual */
   font-size: 14px;
   font-weight: 800;
+  /* detalle visual */
   white-space: nowrap;
   overflow: hidden;
+  /* detalle visual */
   text-overflow: ellipsis;
 }
 
 .mp-mealCost {
   margin-top: 4px;
+  /* detalle visual */
   font-size: 13px;
   color: #86a600;
+  /* detalle visual */
   font-weight: 800;
 }
 
 .mp-seeRecipeBtn {
   background: #14532d;
+  /* detalle visual */
   color: #ffffff;
   text-decoration: none;
+  /* detalle visual */
   padding: 10px 12px;
   border-radius: 14px;
+  /* detalle visual */
   font-weight: 800;
   white-space: nowrap;
+/* fin del bloque css */
 }
 
 .mp-mealActions {
   display: flex;
+  /* detalle visual */
   flex-direction: row;
   align-items: center;
+  /* detalle visual */
   justify-content: flex-end;
   gap: 10px;
+/* fin del bloque css */
 }
 
 .mp-changeBtn {
   appearance: none;
+  /* detalle visual */
   border: 0;
   background: #86a600;
+  /* detalle visual */
   color: #ffffff;
   width: 34px;
+  /* detalle visual */
   height: 34px;
   border-radius: 999px;
+  /* detalle visual */
   display: grid;
   place-items: center;
+  /* detalle visual */
   cursor: pointer;
 }
 
 .mp-changeBtn--busy {
   width: auto;
+  /* detalle visual */
   padding: 0 12px;
   display: flex;
+  /* detalle visual */
   align-items: center;
   justify-content: center;
+  /* detalle visual */
   gap: 8px;
 }
 
 .mp-changeBtnText {
   font-size: 12px;
+  /* detalle visual */
   font-weight: 800;
   white-space: nowrap;
+/* fin del bloque css */
 }
 
 .mp-changeBtn:disabled {
   opacity: 0.6;
+  /* detalle visual */
   cursor: not-allowed;
 }
 
 .mp-changeIcon {
   width: 18px;
+  /* detalle visual */
   height: 18px;
 }
 
 .mp-creatingBanner {
   margin-top: 16px;
+  /* detalle visual */
   padding: 16px 14px;
   border-radius: 16px;
+  /* detalle visual */
   border: 2px solid #86a600;
   background: #eff7dc;
+  /* detalle visual */
   color: #14532d;
   font-size: 22px;
+  /* detalle visual */
   font-weight: 900;
   text-align: center;
+/* fin del bloque css */
 }
 
 .mp-emptyDay {
   color: #52525b;
+  /* detalle visual */
   font-weight: 700;
   padding: 18px 4px;
+/* fin del bloque css */
 }
 
 .mp-dangerBtn {
   appearance: none;
+  /* detalle visual */
   border: 0;
   background: #dc2626;
+  /* detalle visual */
   color: #ffffff;
   padding: 8px 12px;
+  /* detalle visual */
   border-radius: 999px;
   font-weight: 800;
+  /* detalle visual */
   cursor: pointer;
 }
 
 .mp-dangerBtn:disabled {
   opacity: 0.6;
+  /* detalle visual */
   cursor: not-allowed;
 }
 
 .mp-bottomActions {
   display: flex;
+  /* detalle visual */
   justify-content: flex-end;
   margin-top: 14px;
+/* fin del bloque css */
 }
 
 @media (max-width: 920px) {
   .mp-mealRow {
+    /* detalle visual */
     grid-template-columns: 1fr;
   }
+/* fin del bloque css */
 }
 
 @media (max-width: 640px) {
   .mp-budgetBarText--desktop {
+    /* detalle visual */
     display: none;
   }
 
   .mp-budgetBarText--mobile {
     display: grid;
+  /* fin del bloque css */
   }
 
   .mp-desktop {
     display: none;
+  /* fin del bloque css */
   }
 
   .mp-mobile {
     display: block;
+  /* fin del bloque css */
   }
 
   .mp-dayBlock {
     border-top: 0;
+    /* detalle visual */
     padding-top: 0;
   }
 
   .mp-mealGroups {
     gap: 10px;
+  /* fin del bloque css */
   }
 
   .mp-mealGroupHeader {
     flex-direction: column;
+    /* detalle visual */
     align-items: flex-start;
     gap: 2px;
+  /* fin del bloque css */
   }
 
   .mp-mealRow {
     margin-top: 8px;
+    /* detalle visual */
     gap: 0;
   }
 
   .mp-mealCard {
     border: 0;
+    /* detalle visual */
     border-radius: 0;
     padding: 10px 0;
+    /* detalle visual */
     grid-template-columns: 56px 1fr auto;
     border-bottom: 1px solid rgba(20, 83, 45, 0.45);
+  /* fin del bloque css */
   }
 
   .mp-mealGroup .mp-mealCard:last-child {
     border-bottom: 0;
+  /* fin del bloque css */
   }
 
   .mp-mealType {
     display: none;
+  /* fin del bloque css */
   }
 
   .mp-mealName {
     white-space: normal;
+  /* fin del bloque css */
   }
 
   .mp-seeRecipeBtn {
     padding: 9px 12px;
+    /* detalle visual */
     border-radius: 12px;
     font-size: 13px;
+  /* fin del bloque css */
   }
 
   .mp-mealActions {
     gap: 8px;
+  /* fin del bloque css */
   }
 
   .mp-changeBtn {
     width: 32px;
+    /* detalle visual */
     height: 32px;
   }
 
   .mp-changeIcon {
     width: 18px;
+    /* detalle visual */
     height: 18px;
   }
+/* fin del bloque css */
 }

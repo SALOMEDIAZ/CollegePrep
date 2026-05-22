@@ -1,220 +1,288 @@
 .navbar {
   width: 100%;
+  /* detalle visual */
   box-sizing: border-box;
   z-index: 100;
+  /* detalle visual */
   position: sticky;
   top: 0;
+  /* detalle visual */
   left: 0;
   right: 0;
+  /* detalle visual */
   background: #fff;
   border-bottom: 1px solid #e6e6e6;
+  /* detalle visual */
   font-family: "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
 .navbar-content {
   display: flex;
+  /* detalle visual */
   align-items: center;
   justify-content: space-between;
+  /* detalle visual */
   width: 100%;
   padding: 0.8rem 1.5rem;
+  /* detalle visual */
   box-sizing: border-box;
 }
 
 .auth-left {
   display: flex;
+  /* detalle visual */
   align-items: center;
   gap: 2rem;
+  /* detalle visual */
   flex: 1;
 }
 
 .auth-right {
   display: flex;
+  /* detalle visual */
   align-items: center;
   gap: 1rem;
+/* fin del bloque css */
 }
 
 .navbar-brand {
   display: flex;
+  /* detalle visual */
   align-items: center;
   text-decoration: none;
+  /* detalle visual */
   flex-shrink: 0;
 }
 
 .navbar-logo {
   height: 38px;
+  /* detalle visual */
   width: auto;
   object-fit: contain;
+/* fin del bloque css */
 }
 
 .nav-items-desktop {
   display: flex;
+  /* detalle visual */
   gap: 1rem;
   align-items: center;
+  /* detalle visual */
   flex: 1;
 }
 
 .nav-item {
   color: #1e4d28;
+  /* detalle visual */
   text-decoration: none;
   font-weight: 600;
+  /* detalle visual */
   padding: 0.5rem 0.8rem;
   border-radius: 0.45rem;
+  /* detalle visual */
   transition:
     background 0.2s ease,
+    /* detalle visual */
     color 0.2s ease;
   white-space: nowrap;
+/* fin del bloque css */
 }
 
 .nav-item:hover {
   background: rgba(30, 77, 40, 0.1);
+/* fin del bloque css */
 }
 
 .user-icon {
   display: flex;
+  /* detalle visual */
   align-items: center;
   justify-content: center;
+  /* detalle visual */
   background: none;
   border: none;
+  /* detalle visual */
   cursor: pointer;
   padding: 0.4rem;
+  /* detalle visual */
   border-radius: 0.45rem;
   transition: background 0.2s ease;
+  /* detalle visual */
   flex-shrink: 0;
 }
 
 .user-icon:hover {
   background: rgba(30, 77, 40, 0.1);
+/* fin del bloque css */
 }
 
 .icon-image {
   width: 24px;
+  /* detalle visual */
   height: 24px;
   object-fit: contain;
+/* fin del bloque css */
 }
 
 .hamburger {
   display: none;
+  /* detalle visual */
   flex-direction: column;
   background: none;
+  /* detalle visual */
   border: none;
   cursor: pointer;
+  /* detalle visual */
   padding: 0.5rem;
   gap: 5px;
+  /* detalle visual */
   align-items: center;
   justify-content: center;
+/* fin del bloque css */
 }
 
 .hamburger-line {
   width: 25px;
+  /* detalle visual */
   height: 3px;
   background: #1e4d28;
+  /* detalle visual */
   border-radius: 2px;
   transition: all 0.3s ease;
+  /* detalle visual */
   display: block;
 }
 
 .hamburger-line.line-1 {
   transform: rotate(45deg) translate(8px, 8px);
+/* fin del bloque css */
 }
 
 .hamburger-line.line-2 {
   opacity: 0;
+/* fin del bloque css */
 }
 
 .hamburger-line.line-3 {
   transform: rotate(-45deg) translate(8px, -8px);
+/* fin del bloque css */
 }
 
 .mobile-menu {
   display: none;
+  /* detalle visual */
   flex-direction: column;
   background: #fff;
+  /* detalle visual */
   border-top: 1px solid #e6e6e6;
   padding: 1rem 1.5rem;
+  /* detalle visual */
   gap: 0.5rem;
   animation: slideDown 0.3s ease;
+/* fin del bloque css */
 }
 
 .mobile-menu .nav-item {
   width: 100%;
+  /* detalle visual */
   padding: 0.75rem 0.5rem;
   text-align: left;
+/* fin del bloque css */
 }
 
 @keyframes slideDown {
   from {
+    /* detalle visual */
     opacity: 0;
     transform: translateY(-10px);
+  /* fin del bloque css */
   }
   to {
+    /* detalle visual */
     opacity: 1;
     transform: translateY(0);
+  /* fin del bloque css */
   }
 }
 
 /* Tablet and small screens */
 @media (max-width: 768px) {
   .navbar-content {
+    /* detalle visual */
     padding: 0.8rem 1rem;
   }
 
   .auth-left {
     gap: 1rem;
+  /* fin del bloque css */
   }
 
   .nav-items-desktop {
     display: none;
+  /* fin del bloque css */
   }
 
   .hamburger {
     display: flex;
+  /* fin del bloque css */
   }
 
   .mobile-menu {
     display: flex;
+  /* fin del bloque css */
   }
 }
 
 /* Mobile phones */
 @media (max-width: 480px) {
   .navbar-content {
+    /* detalle visual */
     padding: 0.6rem 1rem;
   }
 
   .navbar-logo {
     height: 32px;
+  /* fin del bloque css */
   }
 
   .auth-left {
     gap: 0.5rem;
+  /* fin del bloque css */
   }
 
   .auth-right {
     gap: 0.5rem;
+  /* fin del bloque css */
   }
 
   .icon-image {
     width: 20px;
+    /* detalle visual */
     height: 20px;
   }
 
   .mobile-menu {
     padding: 0.8rem 1rem;
+  /* fin del bloque css */
   }
 
   .mobile-menu .nav-item {
     padding: 0.6rem 0.4rem;
+    /* detalle visual */
     font-size: 0.95rem;
   }
+/* fin del bloque css */
 }
 
 /* Large screens */
 @media (min-width: 1200px) {
   .navbar-content {
+    /* detalle visual */
     padding: 0.8rem 3rem;
   }
 
   .auth-left {
     gap: 2.5rem;
+  /* fin del bloque css */
   }
 }

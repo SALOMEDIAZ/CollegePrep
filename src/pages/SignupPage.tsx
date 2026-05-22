@@ -1,10 +1,13 @@
+// formulario de registro con firebase
 import SignupForm from "../components/Auth/SignupForm";
+// mismos estilos que login (fondo crema y decoraciones)
 import "../styles/Auth.css";
 
 // página para crear una cuenta
 const SignupPage = () => {
   return (
     <main className="auth-page">
+      {/* logo decorativo */}
       <div className="decor-logo" />
       <div className="decor-bag-red" />
       <div className="decor-bag-bottom" />

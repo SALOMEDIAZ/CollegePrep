@@ -1,3 +1,4 @@
+// pagina de busqueda de recetas con filtros de categoria y alergias
 import { useEffect, useState } from "react";
 import {searchMealsByFirstLetter,searchMealsByName,type MealDbMeal,} from "../services/api";
 import RecipeCard from "../components/Recipes/RecipeCard";

@@ -1,19 +1,27 @@
 <!doctype html>
+<!-- pagina html base: aqui react monta todo en #root -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- favicon de cubiertos -->
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/images-icons/cubiertos.png" />
+    <!-- viewport para que se vea bien en celular -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- preconnect acelera llamadas a themealdb -->
     <link rel="preconnect" href="https://www.themealdb.com" crossorigin />
     <link rel="dns-prefetch" href="https://www.themealdb.com" />
+    <!-- preconnect a supabase donde guardamos perfiles y planes -->
     <link rel="preconnect" href="https://pvyyaqxnjiklpmzbbruu.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://pvyyaqxnjiklpmzbbruu.supabase.co" />
+    <!-- preload del avatar por defecto para profile mas rapido -->
     <link rel="preload" href="/assets/images-icons/usuario%201.png" as="image" fetchpriority="high" />
+    <!-- preconnect a firebase auth -->
     <link rel="preconnect" href="https://collegeprep-433f2.firebaseapp.com" crossorigin />
     <link rel="dns-prefetch" href="https://collegeprep-433f2.firebaseapp.com" />
     <title>collegeprep</title>
   </head>
   <body>
+    <!-- react renderiza aqui via main.tsx -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -9,13 +9,14 @@ import { setProfileCache } from "../store/slices/profileSlice";
 const DEF_AVATAR = `/assets/images-icons/${encodeURIComponent("usuario 1.png")}`;
 const SETTINGS_ICON_SRC = "/assets/images-icons/settings.png";
 
+// estado inicial: primero sessionStorage, luego redux, sino null
 function initialProfileState(uid: string, reduxRow: ProfileRow | null, reduxDbId: string | null) {
   const cached = readProfilePageCache(uid);
   if (cached) {
     return {
       profile: cached.profile,
       dbUserId: cached.dbUserId,
-      // SOLO % CALCULADO DEL MEAL PLAN (NO budget_percent VIEJO DE LA BD)
+      // weeklyUsedPct viene del meal plan, no del campo viejo de la bd
       weeklyUsedPct: cached.budgetPct,
       hasCache: true,
     };
@@ -45,11 +46,12 @@ export default function ProfilePage() {
   const uid = sessionUser?.id ?? "";
   const boot = uid ? initialProfileState(uid, reduxRow, reduxDbId) : null;
 
+  // datos que pintamos en la ui (perfil + % presupuesto semanal)
   const [profile, setProfile] = useState<ProfileRow | null>(boot?.profile ?? null);
   const [dbUserId, setDbUserId] = useState<string | null>(boot?.dbUserId ?? null);
   const [weeklyUsedPct, setWeeklyUsedPct] = useState<number | null>(boot?.weeklyUsedPct ?? null);
 
-  // IMPORT DINAMICO + RED: NO BLOQUEA EL PRIMER PINTADO (MEJORA LCP/TBT)
+  // carga perfil y % en red sin bloquear el primer render
   useEffect(() => {
     if (!sessionUser) return;
     let cancelled = false;
@@ -82,7 +84,7 @@ export default function ProfilePage() {
       });
     };
 
-    // CON CACHE: MUESTRA RAPIDO Y ACTUALIZA % IGUAL QUE MEAL PLAN
+    // con cache: pintamos rapido y refrescamos despues de 800ms
     if (hadCache) {
       const timer = window.setTimeout(() => void run(), 800);
       return () => {
@@ -91,7 +93,7 @@ export default function ProfilePage() {
       };
     }
 
-    // SIN CACHE: ESPERA 2 FRAMES PARA QUE LIGHTHOUSE MARQUE LCP PRIMERO
+    // sin cache: esperamos 2 frames para no matar el lcp de lighthouse
     let frame2 = 0;
     const frame1 = requestAnimationFrame(() => {
       frame2 = requestAnimationFrame(() => void run());
@@ -103,6 +105,7 @@ export default function ProfilePage() {
     };
   }, [sessionUser, dispatch, boot?.hasCache]);
 
+  // fallback: si el % sigue null, lo intentamos otra vez a los 2.5s
   useEffect(() => {
     if (!sessionUser || weeklyUsedPct != null) return;
     let cancelled = false;
@@ -118,6 +121,7 @@ export default function ProfilePage() {
     };
   }, [sessionUser, dbUserId, weeklyUsedPct]);
 
+  // al volver a la pestana refrescamos el % del meal plan
   useEffect(() => {
     if (!sessionUser) return;
     const id = sessionUser.id;
@@ -140,6 +144,7 @@ export default function ProfilePage() {
 
   if (!sessionUser) return null;
 
+  // strings listos para mostrar (con fallback si falta dato)
   const avatar = profile?.avatar_url || DEF_AVATAR;
   const name = profile?.full_name?.trim() || sessionUser.displayName?.trim() || "—";
   const email = sessionUser.email || "—";
@@ -241,6 +246,7 @@ export default function ProfilePage() {
             <h2 className="profile-card-h-budget">Your budget</h2>
             <p className="profile-budget-note">Weekly meal plan used</p>
             <div className="profile-budget-inner">
+              {/* anillo css usa --value; "…" mientras carga el fetch */}
               <div
                 className="profile-budget-ring"
                 style={{ "--value": budgetDisplay } as CSSProperties}

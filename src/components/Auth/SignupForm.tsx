@@ -7,12 +7,12 @@ import { registerUser } from "../../services/authService";
 import { friendlyFirebaseAuthMessage } from "../../services/authErrors";
 import { ensureProfileRow, upsertProfile } from "../../services/profileService";
 
-// componente para crear una cuenta nueva
+// formulario para registrar un usuario nuevo
 const SignupForm = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  // estados del formulario
+  // estados de cada campo del formulario
   const [fullName, setFullName] = useState("");
   const [university, setUniversity] = useState("");
   const [career, setCareer] = useState("");
@@ -20,7 +20,7 @@ const SignupForm = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // estados para controlar el proceso
+  // estados de ui: carga, error y mensaje de exito
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -30,19 +30,18 @@ const SignupForm = () => {
     setError("");
     setSuccess("");
 
-    // valido que todos los campos obligatorios estén llenos
+    // validamos campos obligatorios
     if (!fullName || !email || !password || !confirmPassword) {
       setError("Please fill in all required fields.");
       return;
     }
 
-    // valido la contraseña
     if (password.length < 6) {
       setError("Password must be at least 6 characters long.");
       return;
     }
 
-    // me aseguro que las contraseñas coincidan
+    // las dos contrasenas deben coincidir
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -51,12 +50,12 @@ const SignupForm = () => {
     setLoading(true);
 
     try {
-      // creo el usuario en firebase
+      // creamos la cuenta en firebase
       const user = await registerUser(email, password, {
         displayName: fullName,
       });
 
-      // creo un registro en supabase para guardar datos extra
+      // guardamos datos extra en supabase (perfil)
       const { profile, error: profErr } = await ensureProfileRow(user.id);
       if (!profErr && profile) {
         await upsertProfile(user.id, {
@@ -66,14 +65,13 @@ const SignupForm = () => {
         });
       }
 
-      // guardo en redux
       dispatch(setUser(user));
       setSuccess(
         "Registration successful, please check your email and then log in.",
       );
       navigate("/recipes");
 
-      // limpio el formulario
+      // limpiamos el form despues de registrar
       setFullName("");
       setUniversity("");
       setCareer("");

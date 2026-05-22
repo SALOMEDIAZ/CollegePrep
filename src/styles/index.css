@@ -1,7 +1,12 @@
+/* reset basico: todos los elementos usan border-box */
 * {
   box-sizing: border-box;
 }
+/* estilos de este bloque */
+/* body ocupa toda la pantalla sin margen del navegador */
 body {
   margin: 0;
+  /* detalle visual */
+  /* fuente por defecto de toda la app */
   font-family: Inter, system-ui, sans-serif;
 }

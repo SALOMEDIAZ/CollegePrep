@@ -1,9 +1,11 @@
+// grilla visual del plan semanal: dias, comidas y barra de presupuesto
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { MealPlanViewModel, MealType, ReplaceMealArgs } from "../../types/mealPlan";
 
 export type { MealPlanDay, MealPlanMeal, MealPlanViewModel, MealType, Weekday } from "../../types/mealPlan";
 
+// formatea pesos colombianos sin decimales
 function fmtCop(n: number) {
   return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Math.round(n));
 }
