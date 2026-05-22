@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "../../store/store";
 import { setUser } from "../../store/slices/profileSlice";
 import { loginUser } from "../../services/authService";
+import { writeProfilePageCache } from "../../services/profilePageCache";
 import { friendlyFirebaseAuthMessage } from "../../services/authErrors";
 
 // componente del formulario de login
@@ -35,6 +36,20 @@ const LoginForm = () => {
       const user = await loginUser(email, password);
       // guardo en redux
       dispatch(setUser(user));
+      // PRECALIENTA /profile EN SEGUNDO PLANO
+      void import("../../services/profileService").then(({ loadProfilePageData }) =>
+        loadProfilePageData(user.id),
+      ).then(async ({ profile: p, dbUserId }) => {
+        if (!p || !dbUserId) return;
+        const { fetchWeeklyBudgetUsedPercent } = await import("../../services/profileService");
+        const budgetPct = await fetchWeeklyBudgetUsedPercent(user.id, dbUserId);
+        writeProfilePageCache({
+          uid: user.id,
+          dbUserId,
+          profile: p,
+          budgetPct,
+        });
+      });
       navigate("/recipes");
     } catch (e) {
       setError(friendlyFirebaseAuthMessage(e));

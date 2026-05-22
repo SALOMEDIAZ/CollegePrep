@@ -1,9 +1,11 @@
 import supabase from "./supabaseClient";
 import { signOut } from "firebase/auth";
 import type { ProfilePatch, ProfileRow } from "../types/profile";
-import type { CreatePlanValues, Weekday } from "../types/mealPlan";
 import { auth } from "./firebase";
-import { buildAvoidKeywordSets, buildMealsForSlots, buildRestrictionValues, fromISODate } from "./mealPlanLogic";
+
+// COLUMNAS MINIMAS PARA /profile (MENOS DATOS = MAS RAPIDO)
+const PROFILE_PAGE_SELECT =
+  "id,full_name,username,age,location,university,career,avatar_url,budget_percent,allergies,vegetarian,vegan,gluten_free,lactose_free,omnivorous";
 
 type AllergyRow = {
   id: string;
@@ -31,6 +33,22 @@ function invalidSupabaseUserIdError() {
 
 function invalidProfileIdFromRpcError() {
   return new Error("Could not resolve a valid profile id from Supabase RPC mapping.");
+}
+
+// CACHE: EVITA RPC DUPLICADOS AL CARGAR PROFILE
+const profileIdCache = new Map<string, string>();
+const profileIdInflight = new Map<string, Promise<string | null>>();
+
+export function clearProfileIdCache(firebaseUid?: string) {
+  if (firebaseUid) {
+    profileIdCache.delete(firebaseUid);
+    for (const key of profileIdInflight.keys()) {
+      if (key.startsWith(`${firebaseUid}:`)) profileIdInflight.delete(key);
+    }
+    return;
+  }
+  profileIdCache.clear();
+  profileIdInflight.clear();
 }
 
 async function getProfileIdForFirebaseUid(firebaseUid: string): Promise<string | null> {
@@ -62,8 +80,28 @@ async function ensureProfileIdForFirebaseUid(firebaseUid: string): Promise<strin
 export async function resolveSupabaseProfileId(userId: string, createIfMissing = true): Promise<string | null> {
   if (isUuid(userId)) return userId;
   if (!userId.trim()) return null;
-  if (createIfMissing) return ensureProfileIdForFirebaseUid(userId);
-  return getProfileIdForFirebaseUid(userId);
+
+  const cached = profileIdCache.get(userId);
+  if (cached) return cached;
+
+  const inflightKey = `${userId}:${createIfMissing ? "1" : "0"}`;
+  const pending = profileIdInflight.get(inflightKey);
+  if (pending) return pending;
+
+  const task = (async () => {
+    const id = createIfMissing
+      ? await ensureProfileIdForFirebaseUid(userId)
+      : await getProfileIdForFirebaseUid(userId);
+    if (id) profileIdCache.set(userId, id);
+    return id;
+  })();
+
+  profileIdInflight.set(inflightKey, task);
+  try {
+    return await task;
+  } finally {
+    profileIdInflight.delete(inflightKey);
+  }
 }
 
 function normKey(s: string) {
@@ -120,19 +158,31 @@ export async function fetchProfileByUserId(userId: string) {
   return { profile: data as ProfileRow | null, error: null as null };
 }
 
-export async function ensureProfileRow(userId: string) {
-  let dbUserId = userId;
-  try {
-    const resolved = await resolveSupabaseProfileId(userId, true);
-    if (!resolved) return { profile: null as ProfileRow | null, error: invalidSupabaseUserIdError() };
-    dbUserId = resolved;
-  } catch (error) {
-    return { profile: null as ProfileRow | null, error: error as Error };
+export async function ensureProfileRow(userId: string, knownDbUserId?: string | null) {
+  let dbUserId = knownDbUserId ?? null;
+  if (!dbUserId) {
+    try {
+      const resolved = await resolveSupabaseProfileId(userId, true);
+      if (!resolved) return { profile: null as ProfileRow | null, error: invalidSupabaseUserIdError() };
+      dbUserId = resolved;
+    } catch (error) {
+      return { profile: null as ProfileRow | null, error: error as Error };
+    }
   }
-  const { profile, error } = await fetchProfileByUserId(dbUserId);
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PROFILE_PAGE_SELECT)
+    .eq("id", dbUserId)
+    .maybeSingle();
   if (error) return { profile: null as ProfileRow | null, error };
-  if (profile) return { profile, error: null as null };
-  const { data, error: insErr } = await supabase.from("profiles").insert({ id: dbUserId }).select("*").single();
+  if (data) return { profile: data as ProfileRow, error: null as null };
+
+  const { data: inserted, error: insErr } = await supabase
+    .from("profiles")
+    .insert({ id: dbUserId })
+    .select(PROFILE_PAGE_SELECT)
+    .single();
   if (insErr) {
     const code = String((insErr as { code?: unknown })?.code ?? "");
     if (code === "23503") {
@@ -144,7 +194,21 @@ export async function ensureProfileRow(userId: string) {
     }
     return { profile: null as ProfileRow | null, error: insErr };
   }
-  return { profile: data as ProfileRow, error: null as null };
+  return { profile: inserted as ProfileRow, error: null as null };
+}
+
+// UNA SOLA ENTRADA PARA /profile (RPC + SELECT)
+export async function loadProfilePageData(firebaseUid: string) {
+  const dbUserId = await resolveSupabaseProfileId(firebaseUid, true);
+  if (!dbUserId) {
+    return {
+      profile: null as ProfileRow | null,
+      dbUserId: null as string | null,
+      error: invalidSupabaseUserIdError(),
+    };
+  }
+  const { profile, error } = await ensureProfileRow(firebaseUid, dbUserId);
+  return { profile, dbUserId, error };
 }
 
 export async function upsertProfile(userId: string, patch: ProfilePatch) {
@@ -184,24 +248,7 @@ export async function wipeAccountAndSignOut() {
   return {};
 }
 
-export async function fetchWeeklyBudgetUsedPercent(userId: string): Promise<number> {
-  const dbUserId = await resolveSupabaseProfileId(userId, false);
-  if (!dbUserId) return 0;
-  const { data, error } = await supabase
-    .from("meal_plans")
-    .select("id,start_date,end_date,budget,only_saved_recipes,only_new_recipes")
-    .eq("user_id", dbUserId)
-    .order("start_date", { ascending: true });
-  if (error || !data?.length) return 0;
-
-  const rows = data as Array<{
-    id: string;
-    start_date: string;
-    end_date: string;
-    budget: number | string | null;
-    only_saved_recipes: boolean | null;
-    only_new_recipes: boolean | null;
-  }>;
+function currentWeekPlanRow<T extends { start_date: string; end_date: string }>(rows: T[]) {
   const todayIso = (() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -209,57 +256,33 @@ export async function fetchWeeklyBudgetUsedPercent(userId: string): Promise<numb
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   })();
-
   let idx = rows.findIndex((r) => r.end_date >= todayIso);
   if (idx < 0) idx = rows.length - 1;
-  const row = rows[idx];
+  return rows[idx] ?? null;
+}
+
+// MISMO % QUE MEAL PLAN: usa loadPlanViewModel (plan.used / plan.budget)
+export async function fetchWeeklyBudgetUsedPercent(
+  userId: string,
+  knownDbUserId?: string | null,
+): Promise<number> {
+  const dbUserId = knownDbUserId ?? (await resolveSupabaseProfileId(userId, false));
+  if (!dbUserId) return 0;
+
+  const { fetchAllPlans, loadPlanViewModel } = await import("./mealPlanService");
+  const rows = await fetchAllPlans(userId);
+  const row = currentWeekPlanRow(rows);
   if (!row) return 0;
 
-  const budget = Number(row.budget ?? 0) || 0;
-  if (!(budget > 0)) return 0;
-
-  const { profile } = await fetchProfileByUserId(dbUserId);
-  const restrictionValues = buildRestrictionValues(profile);
-  const allergyKeywords = await fetchAllergyKeywords(restrictionValues);
-  const avoid = profile ? buildAvoidKeywordSets(profile, allergyKeywords) : { allergyAvoid: new Set<string>(), dietAvoid: new Set<string>() };
-
-  const { data: savedRows, error: savedErr } = await supabase
-    .from("saved_recipes")
-    .select("recipe_id")
-    .eq("user_id", dbUserId);
-  if (savedErr) return 0;
-  const savedIdsArr = ((savedRows ?? []) as Array<{ recipe_id: string | null }>).map((r) => String(r.recipe_id ?? "")).filter(Boolean);
-
-  const { data: dayRows, error: dayErr } = await supabase.from("meal_plan_days").select("date,weekday").eq("meal_plan_id", row.id);
-  if (dayErr) return 0;
-
-  const allFalse = { breakfast: false, lunch: false, dinner: false };
-  const days: Weekday[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const selections = {} as CreatePlanValues["selections"];
-  for (const d of days) selections[d] = { ...allFalse };
-  for (const d of (dayRows ?? []) as Array<{ weekday: string | null }>) {
-    const wd = String(d.weekday ?? "").trim() as Weekday;
-    if (!wd) continue;
-    selections[wd] = { breakfast: true, lunch: true, dinner: true };
+  try {
+    const plan = await loadPlanViewModel(row);
+    if (!(plan.budget > 0)) return 0;
+    const pct = Math.min(100, Math.round((plan.used / plan.budget) * 100));
+    // GUARDA EN profiles PARA NO QUEDAR DESACTUALIZADO (EJ. 75 FIJO)
+    void supabase.from("profiles").update({ budget_percent: pct }).eq("id", dbUserId);
+    return pct;
+  } catch (e) {
+    console.error(e);
+    return 0;
   }
-
-  const values: CreatePlanValues = {
-    budget,
-    onlySavedRecipes: Boolean(row.only_saved_recipes),
-    onlyNewRecipes: Boolean(row.only_new_recipes),
-    selections,
-  };
-
-  const vm = await buildMealsForSlots({
-    values,
-    savedIdsArr,
-    weekTitle: "Week",
-    rangeStart: fromISODate(row.start_date),
-    rangeEnd: fromISODate(row.end_date),
-    avoid,
-    seed: String(row.id),
-  });
-
-  if (!(vm.budget > 0)) return 0;
-  return Math.min(100, Math.round((vm.used / vm.budget) * 100));
 }

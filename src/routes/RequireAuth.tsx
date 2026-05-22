@@ -3,26 +3,31 @@ import { useEffect, useState } from "react";
 import type { RequireAuthProps } from "../types/auth";
 import { useAppDispatch } from "../store/store";
 import { clearUser, setUser } from "../store/slices/profileSlice";
-import { subscribeAuth } from "../services/authService";
+import { firebaseUserToAppUser, subscribeAuth } from "../services/authService";
+import { auth } from "../services/firebase";
+import { clearProfileIdCache } from "../services/profileService";
+import { clearProfilePageCache } from "../services/profilePageCache";
 import { NavBar } from "../components/Common/NavBar";
 
 // wrapper que protege las rutas privadas, solo deja entrar si estás logueado
 const RequireAuth = ({ children }: RequireAuthProps) => {
   const dispatch = useAppDispatch();
-  // controlo si el usuario está autenticado
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // controlo si todavía estoy verificando la sesión
-  const [loading, setLoading] = useState(true);
+  // SI FIREBASE YA TIENE SESION, NO BLOQUEAMOS LA PANTALLA (MEJORA LCP)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(auth.currentUser));
+  const [loading, setLoading] = useState(() => !auth.currentUser);
 
   useEffect(() => {
-    // me suscribo a los cambios de autenticación
+    if (auth.currentUser) {
+      dispatch(setUser(firebaseUserToAppUser(auth.currentUser)));
+    }
+
     const unsub = subscribeAuth((appUser) => {
       if (appUser) {
-        // guardo el usuario en redux
         dispatch(setUser(appUser));
         setIsAuthenticated(true);
       } else {
-        // limpio el usuario si cierra sesión
+        clearProfileIdCache();
+        clearProfilePageCache();
         dispatch(clearUser());
         setIsAuthenticated(false);
       }
@@ -34,12 +39,9 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
     };
   }, [dispatch]);
 
-  // mientras cargo, muestro loading
-  if (loading) return <div>Cargando...</div>;
-  // si no está autenticado, lo mando al login
+  if (loading) return null;
   if (!isAuthenticated) return <Navigate to="/login" />;
 
-  // si todo está bien, muestro la navbar y el contenido
   return (
     <>
       <NavBar />

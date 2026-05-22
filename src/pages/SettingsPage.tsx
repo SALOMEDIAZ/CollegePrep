@@ -2,12 +2,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import "../styles/settings.css";
 import {
+  clearProfileIdCache,
   ensureProfileRow,
   fetchProfileByUserId,
   persistAvatar,
   upsertProfile,
   wipeAccountAndSignOut,
 } from "../services/profileService";
+import { clearProfilePageCache } from "../services/profilePageCache";
 import { firebaseUserToAppUser, logoutUser, updateUserEmail } from "../services/authService";
 import { friendlyFirebaseAuthMessage } from "../services/authErrors";
 import { auth } from "../services/firebase";
@@ -215,6 +217,8 @@ export default function SettingsPage() {
 
   async function signOut() {
     await logoutUser();
+    clearProfileIdCache();
+    clearProfilePageCache();
     dispatch(clearUser());
     nav("/login");
   }
@@ -223,6 +227,8 @@ export default function SettingsPage() {
     if (!confirm("This will delete your profile data and sign you out. Continue?")) return;
     const r = await wipeAccountAndSignOut();
     if ("error" in r && r.error) alert(String(r.error.message));
+    clearProfileIdCache();
+    clearProfilePageCache();
     dispatch(clearUser());
     nav("/login");
   }

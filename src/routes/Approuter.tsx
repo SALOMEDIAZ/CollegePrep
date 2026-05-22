@@ -1,13 +1,18 @@
+import { lazy, Suspense } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
-import Login from "../pages/LoginPage.tsx";
-import Signup from "../pages/SignupPage.tsx";
-import Recipes from "../pages/RecipesPage.tsx";
-import RecipeDetailPage from "../pages/RecipeDetailPage.tsx";
-import PlannerPage from "../pages/PlannerPage.tsx";
 import RequireAuth from "./RequireAuth.tsx";
-import Landing from "../pages/LandingPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
-import SettingsPage from "../pages/SettingsPage.tsx";
+
+// PESADAS: SOLO SE CARGAN CUANDO ENTRAS A ESA RUTA (PROFILE CARGA MAS RAPIDO)
+const Landing = lazy(() => import("../pages/LandingPage.tsx"));
+const Login = lazy(() => import("../pages/LoginPage.tsx"));
+const Signup = lazy(() => import("../pages/SignupPage.tsx"));
+const Recipes = lazy(() => import("../pages/RecipesPage.tsx"));
+const RecipeDetailPage = lazy(() => import("../pages/RecipeDetailPage.tsx"));
+const PlannerPage = lazy(() => import("../pages/PlannerPage.tsx"));
+const SettingsPage = lazy(() => import("../pages/SettingsPage.tsx"));
+
+const routeFallback = <div className="profile-page-bg" aria-hidden />;
 
 // aquí defino todas las rutas de la aplicación
 function AppRouter() {
@@ -16,15 +21,31 @@ function AppRouter() {
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
     >
       <Routes>
-        {/* landing es la página sin autenticación requerida */}
         <Route path="/" element={<Navigate to="/landing" replace />} />
-        <Route path="/landing" element={<Landing />} />
-
-        {/* rutas de autenticación */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Signup />} />
-
-        {/* rutas protegidas (requieren estar logueado) */}
+        <Route
+          path="/landing"
+          element={
+            <Suspense fallback={routeFallback}>
+              <Landing />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <Suspense fallback={routeFallback}>
+              <Login />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <Suspense fallback={routeFallback}>
+              <Signup />
+            </Suspense>
+          }
+        />
         <Route
           path="/profile"
           element={
@@ -37,7 +58,9 @@ function AppRouter() {
           path="/settings"
           element={
             <RequireAuth>
-              <SettingsPage />
+              <Suspense fallback={routeFallback}>
+                <SettingsPage />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -45,7 +68,9 @@ function AppRouter() {
           path="/recipes"
           element={
             <RequireAuth>
-              <Recipes />
+              <Suspense fallback={routeFallback}>
+                <Recipes />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -53,7 +78,9 @@ function AppRouter() {
           path="/recipes/:id"
           element={
             <RequireAuth>
-              <RecipeDetailPage />
+              <Suspense fallback={routeFallback}>
+                <RecipeDetailPage />
+              </Suspense>
             </RequireAuth>
           }
         />
@@ -61,7 +88,9 @@ function AppRouter() {
           path="/mealplan"
           element={
             <RequireAuth>
-              <PlannerPage />
+              <Suspense fallback={routeFallback}>
+                <PlannerPage />
+              </Suspense>
             </RequireAuth>
           }
         />
