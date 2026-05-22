@@ -5,7 +5,6 @@ import supabase from "../services/supabaseClient";
 import { getSessionUserId } from "../services/authService";
 import { resolveSupabaseProfileId } from "../services/profileService";
 import { getMealById, type MealDbMeal } from "../services/api";
-import {extractIngredients,getTimeLabels,splitSteps,titleParts,} from "../services/recipeService";
 import "../styles/recipes.css";
 import "../styles/recipeCard.css";
 
@@ -81,6 +80,180 @@ function pickBestIngredientId(name: string, index: IngredientIndex) {
     if (!best || score < best.score) best = { id: row.id, score };
   }
   return best?.id ?? null;
+}
+
+function extractMinutesFromText(text: string) {
+  const minutes: number[] = [];
+  const add = (n: number) => {
+    if (Number.isFinite(n) && n > 0) minutes.push(n);
+  };
+
+  const rangeMin = /(\d+)\s*[-–]\s*(\d+)\s*(?:mins?|minutes?)\b/gi;
+  for (const m of text.matchAll(rangeMin)) add(Number(m[2]));
+
+  const singleMin = /(\d+)\s*(?:mins?|minutes?)\b/gi;
+  for (const m of text.matchAll(singleMin)) add(Number(m[1]));
+
+  const singleHr = /(\d+)\s*(?:h|hr|hrs|hour|hours)\b/gi;
+  for (const m of text.matchAll(singleHr)) add(Number(m[1]) * 60);
+
+  return minutes;
+}
+
+function getTimeLabels(meal: MealDbMeal | null) {
+  const tagsRaw = meal
+    ? String((meal as unknown as { strTags?: unknown }).strTags ?? "")
+    : "";
+  const tags = tagsRaw
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+  const noCook = tags.includes("nocook");
+
+  const instructions = meal ? String(meal.strInstructions ?? "") : "";
+  const times = instructions ? extractMinutesFromText(instructions) : [];
+
+  const fallbackPrep = "10 minutes to prep";
+  const fallbackCook = noCook ? "No cooking time" : "Cooking time varies";
+
+  if (!times.length)
+    return { prepLabel: fallbackPrep, cookLabel: fallbackCook };
+
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+
+  if (noCook)
+    return {
+      prepLabel: `${min} minutes to prep`,
+      cookLabel: "No cooking time",
+    };
+
+  if (times.length === 1) {
+    if (min <= 20)
+      return { prepLabel: `${min} minutes to prep`, cookLabel: fallbackCook };
+    return {
+      prepLabel: fallbackPrep,
+      cookLabel: `${min} minutes cooking time`,
+    };
+  }
+
+  if (min === max)
+    return {
+      prepLabel: `${min} minutes to prep`,
+      cookLabel: `${max} minutes cooking time`,
+    };
+  return {
+    prepLabel: `${min} minutes to prep`,
+    cookLabel: `${max} minutes cooking time`,
+  };
+}
+
+function extractIngredients(meal: MealDbMeal | null) {
+  const items: Array<{ name: string; measure: string }> = [];
+  if (!meal) return items;
+  for (let i = 1; i <= 20; i++) {
+    const nameKey = `strIngredient${i}` as keyof MealDbMeal;
+    const measureKey = `strMeasure${i}` as keyof MealDbMeal;
+    const name = String(meal[nameKey] ?? "").trim();
+    if (!name) continue;
+    const measure = String(meal[measureKey] ?? "").trim();
+    items.push({ name, measure });
+  }
+  return items;
+}
+
+function titleParts(title: string) {
+  const t = String(title || "").trim();
+  const i = t.indexOf(" ");
+  if (i <= 0) return { first: t, rest: "" };
+  return { first: t.slice(0, i), rest: t.slice(i + 1) };
+}
+
+function splitSteps(instructions: string | null) {
+  const raw = String(instructions ?? "").trim();
+  if (!raw) return [];
+  const MAX_STEP_CHARS = 220;
+  const isOnlyNumber = (s: string) => /^\d+\s*[.)-]?\s*$/.test(s);
+  const stripLeadingNumber = (s: string) =>
+    s.replace(/^\s*\d+\s*[.)-]?\s*/g, "").trim();
+  const isJunk = (s: string) =>
+    !s || isOnlyNumber(s) || /^[\W_]+$/.test(s) || /\bstep\b/i.test(s);
+  const splitSentences = (s: string) =>
+    s
+      .split(/(?<=[.!?])\s+/g)
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+  const hardWrap = (s: string) => {
+    const out: string[] = [];
+    let rest = s.trim();
+    while (rest.length > MAX_STEP_CHARS) {
+      const head = rest.slice(0, MAX_STEP_CHARS + 1);
+      const cutAt = Math.max(head.lastIndexOf(" "), head.lastIndexOf("-"));
+      const cut = cutAt >= 40 ? cutAt : MAX_STEP_CHARS;
+      out.push(rest.slice(0, cut).trim());
+      rest = rest.slice(cut).trim();
+    }
+    if (rest) out.push(rest);
+    return out;
+  };
+
+  const splitLongStep = (s: string) => {
+    const clean = s.trim();
+    if (!clean) return [];
+    if (clean.length <= MAX_STEP_CHARS) return [clean];
+    const pieces = splitSentences(clean);
+    const base =
+      pieces.length > 1
+        ? pieces
+        : clean
+            .split(/[;,]\s+/g)
+            .map((t) => t.trim())
+            .filter(Boolean);
+    const chunks: string[] = [];
+    let cur = "";
+    for (const p of base) {
+      if (!cur) {
+        cur = p;
+        continue;
+      }
+      if (`${cur} ${p}`.length <= MAX_STEP_CHARS) {
+        cur = `${cur} ${p}`;
+      } else {
+        chunks.push(cur);
+        cur = p;
+      }
+    }
+    if (cur) chunks.push(cur);
+    const expanded = chunks.flatMap((c) =>
+      c.length > MAX_STEP_CHARS ? hardWrap(c) : [c],
+    );
+    return expanded.map((x) => x.trim()).filter(Boolean);
+  };
+
+  const rawLines = raw
+    .split(/\r?\n+/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (rawLines.length > 1) {
+    const steps: string[] = [];
+    for (const line of rawLines) {
+      if (isOnlyNumber(line)) continue;
+      const cleaned = stripLeadingNumber(line);
+      if (isJunk(cleaned)) continue;
+      steps.push(...splitLongStep(cleaned));
+    }
+    if (steps.length) return steps;
+  }
+
+  const sentences = splitSentences(raw)
+    .map((s) => stripLeadingNumber(s.trim()))
+    .flatMap((s) => splitLongStep(s))
+    .filter((s) => !isJunk(s));
+
+  if (!sentences.length) return [];
+  return sentences;
 }
 
 const fmtCop = (n: number) =>
@@ -369,37 +542,13 @@ const RecipeDetailPage = () => {
                     disabled={saving}
                     onClick={onToggleSaveRecipe}
                     data-label="Save"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="36"
-                      height="36"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M7 3h10a2 2 0 0 1 2 2v16l-7-4-7 4V5a2 2 0 0 1 2-2Z"
-                      />
-                    </svg>
-                  </button>
+                  />
                   <button
                     type="button"
                     className="recipe-detail-actionBtn"
                     aria-label="Add to meal plan"
                     data-label="Add"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="36"
-                      height="36"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1Zm14 9H5v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V11ZM6 6a1 1 0 0 0-1 1v2h16V7a1 1 0 0 0-1-1H6Zm6 7a1 1 0 0 1 1 1v2h2a1 1 0 1 1 0 2h-2v2a1 1 0 1 1-2 0v-2H9a1 1 0 1 1 0-2h2v-2a1 1 0 0 1 1-1Z"
-                      />
-                    </svg>
-                  </button>
+                  />
                 </div>
                 {saveError ? (
                   <p className="recipes-error">{saveError}</p>
