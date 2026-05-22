@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import "./NavBar.css";
+import "../../styles/NavBar.css";
 
 // barra de navegación que aparece en todas las páginas autenticadas
 export const NavBar = () => {
