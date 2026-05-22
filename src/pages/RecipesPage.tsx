@@ -4,122 +4,11 @@ import {searchMealsByFirstLetter,searchMealsByName,type MealDbMeal,} from "../se
 import RecipeCard from "../components/Recipes/RecipeCard";
 import "../styles/recipes.css";
 import {ensureProfileRow,fetchAllergyKeywords,} from "../services/profileService";
-import type { ProfileRow } from "../types/profile";
 import { getSessionUserId } from "../services/authService";
 import { useAppDispatch, useAppSelector } from "../store/store";
 import {setMeals,setLoading,setError,setForbiddenKeywords,setSearchQuery,setSubmittedQuery,setProfile,} from "../store/slices/recipeSlice";
-
-// Categorías disponibles para filtrar (deben coincidir con strCategory de TheMealDB)
-const CATEGORY_FILTERS = ["Breakfast", "Lunch", "Dinner"] as const;
-type CategoryFilter = (typeof CATEGORY_FILTERS)[number];
-
-// Mapeo de categorías a las que usa TheMealDB
-// "Lunch" y "Dinner" no existen como tal en MealDB, se usan varias categorías equivalentes
-const CATEGORY_MAP: Record<CategoryFilter, string[]> = {
-  Breakfast: ["Breakfast"],
-  Lunch: ["Side", "Starter", "Vegetarian", "Vegan", "Miscellaneous"],
-  Dinner: ["Beef", "Chicken", "Lamb", "Pork", "Seafood", "Pasta", "Goat"],
-};
-
-// normaliza strings para comparar (sin tildes, minúsculas, etc)
-function norm(s: string) {
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[\u2019']/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-// extrae todos los ingredientes de una receta
-function extractMealIngredientNames(meal: MealDbMeal) {
-  const ingredients: string[] = [];
-  for (let i = 1; i <= 20; i++) {
-    const value = String(
-      (meal as unknown as Record<string, unknown>)[`strIngredient${i}`] ?? "",
-    ).trim();
-    if (value) ingredients.push(value);
-  }
-  return ingredients;
-}
-
-// obtiene las restricciones dietéticas del perfil (vegan, gluten free, etc)
-function getDietRestrictions(profile: ProfileRow | null) {
-  if (!profile) return [];
-  const restrictions: string[] = [];
-  if (profile.vegan) restrictions.push("vegan");
-  else if (profile.vegetarian) restrictions.push("vegetarian");
-  if (profile.gluten_free) restrictions.push("gluten_free", "gluten");
-  if (profile.lactose_free) restrictions.push("lactose_free", "lactose");
-  return restrictions;
-}
-
-// si es vegetariano o vegano, obtengo las palabras clave para filtrar
-function getFallbackKeywords(dietRestrictions: string[]) {
-  const isVegetarian =
-    dietRestrictions.includes("vegan") ||
-    dietRestrictions.includes("vegetarian");
-  if (!isVegetarian) return [];
-  const meatKeywords = [
-    "meat",
-    "beef",
-    "pork",
-    "chicken",
-    "turkey",
-    "lamb",
-    "fish",
-    "seafood",
-    "shrimp",
-  ];
-  const veganKeywords = [
-    "egg",
-    "milk",
-    "cheese",
-    "butter",
-    "cream",
-    "yogurt",
-    "honey",
-  ];
-  return dietRestrictions.includes("vegan")
-    ? [...meatKeywords, ...veganKeywords]
-    : meatKeywords;
-}
-
-// chequea si una palabra coincide con alguna palabra clave
-function matchesKeyword(text: string, keywords: string[]) {
-  const normalized = norm(text);
-  if (!normalized) return false;
-  return keywords.some(
-    (kw) => normalized === norm(kw) || normalized.includes(norm(kw)),
-  );
-}
-
-// valida si una receta es permitida según alergias y restricciones
-function isMealAllowed(meal: MealDbMeal, forbiddenKeywords: string[]) {
-  if (!forbiddenKeywords.length) return true;
-
-  const ingredients = extractMealIngredientNames(meal);
-  const title = String(meal.strMeal ?? "");
-  const category = String(meal.strCategory ?? "");
-  const textToCheck = [...ingredients, title, category];
-
-  return !textToCheck.some((text) => matchesKeyword(text, forbiddenKeywords));
-}
-
-// filtra recetas por categoría activa
-function filterByCategory(
-  meals: MealDbMeal[],
-  activeCategory: CategoryFilter | null,
-): MealDbMeal[] {
-  if (!activeCategory) return meals;
-  const allowed = CATEGORY_MAP[activeCategory].map((c) => c.toLowerCase());
-  return meals.filter((m) =>
-    allowed.includes(String(m.strCategory ?? "").toLowerCase()),
-  );
-}
+import { CATEGORY_FILTERS, type CategoryFilter } from "../types/recipes";
+import {filterByCategory,getDietRestrictions,getFallbackKeywords,isMealAllowed,} from "../services/recipeService";
 
 // página principal de recetas con búsqueda y filtros
 const RecipesPage = () => {
@@ -174,9 +63,9 @@ const RecipesPage = () => {
           forbiddenKeywords = [];
           dispatch(setForbiddenKeywords([]));
         } else {
-          const allergies = (
-            Array.isArray(p.allergies) ? p.allergies : []
-          ).map((x) => String(x ?? ""));
+          const allergies = (Array.isArray(p.allergies) ? p.allergies : []).map(
+            (x) => String(x ?? ""),
+          );
           const dietRestrictions = getDietRestrictions(p);
           const allRestrictions = [...allergies, ...dietRestrictions];
 
@@ -209,7 +98,11 @@ const RecipesPage = () => {
         const alphabet = Array.from("abcdefghijklmnopqrstuvwxyz");
         const usedLetters = new Set<string>();
 
-        for (let attempts = 0; attempts < 6 && mealResults.length < 9; attempts++) {
+        for (
+          let attempts = 0;
+          attempts < 6 && mealResults.length < 9;
+          attempts++
+        ) {
           const availableLetters = alphabet.filter((l) => !usedLetters.has(l));
           if (!availableLetters.length) break;
 
