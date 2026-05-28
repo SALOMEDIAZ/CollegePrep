@@ -1,173 +1,229 @@
 @font-face {
   font-family: "PT Sans";
+  /* detalle visual */
   src: url("/assets/fonts/PTSansCaption-Regular.ttf") format("truetype");
   font-weight: 400;
+  /* detalle visual */
   font-style: normal;
   font-display: swap;
+/* fin del bloque css */
 }
 
 .recipe-card {
   background: #ffffff;
+  /* detalle visual */
   border: 1px solid #ececec;
   border-radius: 14px;
+  /* detalle visual */
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(10, 10, 10, 0.06);
+  /* detalle visual */
   display: flex;
   flex-direction: column;
+  /* detalle visual */
   width: 100%;
   max-width: 366px;
+/* fin del bloque css */
 }
 
 .recipe-card--link {
   text-decoration: none;
+  /* detalle visual */
   color: inherit;
 }
 
 .recipe-card--link:hover {
   box-shadow: 0 12px 34px rgba(10, 10, 10, 0.09);
+/* fin del bloque css */
 }
 
 .recipe-card__media {
   width: 100%;
+  /* detalle visual */
   height: 260px;
   background: #f3f4f6;
+  /* detalle visual */
   position: relative;
 }
 
 .recipe-card__mediaPillRow {
   position: absolute;
+  /* detalle visual */
   left: 10px;
   top: 10px;
+  /* detalle visual */
   display: none;
   z-index: 2;
+/* fin del bloque css */
 }
 
 .recipe-card__img {
   width: 100%;
+  /* detalle visual */
   height: 100%;
   object-fit: cover;
+  /* detalle visual */
   display: block;
 }
 
 .recipe-card__body {
   padding: 14px 14px 14px;
+  /* detalle visual */
   display: flex;
   flex-direction: column;
+  /* detalle visual */
   gap: 10px;
   flex: 1;
+/* fin del bloque css */
 }
 
 .recipe-card__title {
   margin: 0;
+  /* detalle visual */
   font-size: 18px;
   line-height: 1.25;
+  /* detalle visual */
   font-weight: 800;
   color: #2f6b4b;
+/* fin del bloque css */
 }
 
 .recipe-card__desc {
   margin: 0;
+  /* detalle visual */
   font-size: 13px;
   line-height: 1.5;
+  /* detalle visual */
   color: #374151;
   min-height: 68px;
+/* fin del bloque css */
 }
 
 .recipe-card__meta {
   display: flex;
+  /* detalle visual */
   flex-direction: column;
   gap: 10px;
+  /* detalle visual */
   margin-top: auto;
 }
 
 .recipe-card__metaRow {
   display: flex;
+  /* detalle visual */
   gap: 10px;
   flex-wrap: nowrap;
+/* fin del bloque css */
 }
 
 .recipe-card__metaRow .recipe-pill {
   flex: 0 1 150px;
+  /* detalle visual */
   min-width: 0;
   max-width: 150px;
+/* fin del bloque css */
 }
 
 .recipe-pill {
   display: inline-flex;
+  /* detalle visual */
   align-items: center;
   gap: 5px;
+  /* detalle visual */
   border: 1px solid #a9cc4a;
   background: #ffffff;
+  /* detalle visual */
   color: #1f2937;
   border-radius: 999px;
+  /* detalle visual */
   padding: 6px 12px;
   font-size: 12px;
+  /* detalle visual */
   font-family: "PT Sans", Inter, system-ui, sans-serif;
   font-weight: 400;
+  /* detalle visual */
   line-height: 1.1;
   white-space: normal;
+  /* detalle visual */
   text-align: left;
   overflow-wrap: anywhere;
+  /* detalle visual */
   max-height: 41px;
   overflow: hidden;
+/* fin del bloque css */
 }
 
 .recipe-pill__icon {
   width: 16px;
+  /* detalle visual */
   height: 16px;
   display: inline-block;
+  /* detalle visual */
   object-fit: contain;
   flex: 0 0 auto;
+/* fin del bloque css */
 }
 
 .recipe-pill--cost {
   color: #2a3a10;
+  /* detalle visual */
   font-weight: 400;
 }
 
 @media (max-width: 640px) {
   .recipe-card__mediaPillRow {
+    /* detalle visual */
     display: block;
   }
 
   .recipe-pill--prep,
   .recipe-pill--cookInline {
+    /* detalle visual */
     display: none;
   }
 
   .recipe-card__media {
     height: 140px;
+  /* fin del bloque css */
   }
 
   .recipe-card__body {
     padding: 10px 10px 12px;
+    /* detalle visual */
     gap: 8px;
   }
 
   .recipe-card__title {
     font-size: 16px;
+  /* fin del bloque css */
   }
 
   .recipe-card__desc {
     display: none;
+  /* fin del bloque css */
   }
 
   .recipe-card__metaRow {
     flex-wrap: wrap;
+  /* fin del bloque css */
   }
 
   .recipe-card__metaRow .recipe-pill {
     flex: 1 1 auto;
+    /* detalle visual */
     max-width: none;
   }
 
   .recipe-pill {
     padding: 5px 10px;
+    /* detalle visual */
     font-size: 11px;
     max-height: 38px;
+  /* fin del bloque css */
   }
 
   .recipe-pill--cost {
     border-radius: 999px;
+  /* fin del bloque css */
   }
 }

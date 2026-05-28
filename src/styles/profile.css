@@ -1,7 +1,9 @@
+/* estilos de la pagina de perfil del usuario */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* fondo con textura suave detras de todo el perfil */
 .profile-page-bg {
   min-height: 100vh;
   background-color: #faf9f6;
@@ -89,7 +91,8 @@
 
   .profile-cover {
     @apply h-48 w-full rounded-b-3xl bg-cover bg-center sm:h-56 md:h-64;
-    background-image: url("https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80");
+    /* IMAGEN LOCAL: MEJOR LCP QUE UNSPLASH EXTERNO */
+    background-image: url("/assets/main/rectangel 78.png");
   }
 
   .profile-avatar-wrap {

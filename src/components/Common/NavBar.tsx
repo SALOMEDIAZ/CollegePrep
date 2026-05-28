@@ -1,21 +1,22 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import "./NavBar.css";
+import "../../styles/NavBar.css";
 
-// barra de navegación que aparece en todas las páginas autenticadas
+// barra de navegacion que aparece en las paginas con sesion
 export const NavBar = () => {
-  // controlo si el menú móvil está abierto
+  // estado para saber si el menu movil esta abierto
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // abro o cierro el menú
+  // handler: abre o cierra el menu hamburguesa
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  // cierro el menú (cuando hago click en un link)
+  // handler: cierra el menu al hacer click en un link
   const closeMenu = () => setIsMenuOpen(false);
 
   return (
     <header className="navbar navbar-auth">
       <div className="navbar-content">
         <div className="auth-left">
+          {/* logo lleva al home y cierra el menu movil */}
           <Link
             to="/"
             className="navbar-brand"
@@ -28,7 +29,7 @@ export const NavBar = () => {
               className="navbar-logo"
             />
           </Link>
-          {/* menú de escritorio */}
+          {/* links principales solo en escritorio */}
           <nav className="nav-items-desktop">
             <Link to="/recipes" className="nav-item">
               Recipes
@@ -40,6 +41,7 @@ export const NavBar = () => {
         </div>
 
         <div className="auth-right">
+          {/* icono de perfil */}
           <Link
             to="/profile"
             className="user-icon"
@@ -52,13 +54,14 @@ export const NavBar = () => {
               className="icon-image"
             />
           </Link>
-          {/* botón de hamburguesa para móvil */}
+          {/* boton hamburguesa: onClick usa toggleMenu */}
           <button
             className="hamburger"
             onClick={toggleMenu}
             aria-label="Toggle menu"
             aria-expanded={isMenuOpen}
           >
+            {/* las lineas cambian de clase si isMenuOpen es true */}
             <span
               className={`hamburger-line ${isMenuOpen ? "line-1" : ""}`}
             ></span>
@@ -72,7 +75,7 @@ export const NavBar = () => {
         </div>
       </div>
 
-      {/* menú móvil que aparece cuando abro el hamburger */}
+      {/* menu movil: solo se muestra si isMenuOpen */}
       {isMenuOpen && (
         <nav className="mobile-menu">
           <Link to="/recipes" className="nav-item" onClick={closeMenu}>

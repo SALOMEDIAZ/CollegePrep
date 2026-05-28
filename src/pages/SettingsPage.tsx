@@ -2,12 +2,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import "../styles/settings.css";
 import {
+  clearProfileIdCache,
   ensureProfileRow,
   fetchProfileByUserId,
   persistAvatar,
   upsertProfile,
   wipeAccountAndSignOut,
 } from "../services/profileService";
+import { clearProfilePageCache } from "../services/profilePageCache";
 import { firebaseUserToAppUser, logoutUser, updateUserEmail } from "../services/authService";
 import { friendlyFirebaseAuthMessage } from "../services/authErrors";
 import { auth } from "../services/firebase";
@@ -18,6 +20,7 @@ import type { AppUser } from "../types/user";
 const DEF_AVATAR = `/assets/images-icons/${encodeURIComponent("usuario 1.png")}`;
 const defaultTags = ["Peanut", "Mushrooms", "Milk"];
 
+// filas de checkboxes de dieta (key mapea a columnas de supabase)
 const PREF_ROWS = [
   { id: "p1", key: "veg" as const, label: "Vegetarian" },
   { id: "p2", key: "vegan" as const, label: "Vegan" },
@@ -38,9 +41,11 @@ export default function SettingsPage() {
   const nav = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const dlgRef = useRef<HTMLDialogElement>(null);
-  const [user, setUserLocal] = useState<AppUser | null>(null);
+  const user: AppUser | null = reduxUser;
+
+  // formulario controlado: cada campo tiene su useState
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => reduxUser?.email || "");
   const [username, setUsername] = useState("");
   const [age, setAge] = useState("");
   const [location, setLocation] = useState("");
@@ -66,15 +71,11 @@ export default function SettingsPage() {
   const [ready, setReady] = useState(false);
   const [saveNotice, setSaveNotice] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
 
-  useEffect(() => {
-    if (!reduxUser) return;
-    setUserLocal(reduxUser);
-    setEmail(reduxUser.email || "");
-  }, [reduxUser]);
-
+  // al montar: trae fila de supabase y rellena el form
   useEffect(() => {
     async function load() {
       if (!reduxUser) return;
+      setEmail(reduxUser.email || "");
       const { profile: p, error } = await ensureProfileRow(reduxUser.id);
       if (error || !p) {
         console.error(error);
@@ -119,6 +120,7 @@ export default function SettingsPage() {
     { label: "Career", value: career, set: setCareer },
   ];
 
+  // guarda todo: primero supabase, luego firebase si cambio el email
   async function saveAll() {
     if (!user) return;
     setSaveNotice(null);
@@ -126,7 +128,6 @@ export default function SettingsPage() {
 
     const ageNum = age.trim() === "" ? null : Number.parseInt(age, 10);
 
-    // PRIMERO SUPABASE: DIETA, ALERGIAS, CARRERA, ETC (SIN EMAIL NI PASSWORD EN SUPABASE AUTH)
     const res = await upsertProfile(user.id, {
       full_name: name,
       username: username.replace(/^@/, ""),
@@ -154,7 +155,7 @@ export default function SettingsPage() {
       return;
     }
 
-    // DESPUES FIREBASE: SOLO SI CAMBIA EL EMAIL DE LOGIN
+    // email de login vive en firebase, no en la tabla profiles
     if (email.trim() && email.trim() !== user.email) {
       const eRes = await updateUserEmail(email.trim());
       if (eRes.error) {
@@ -170,7 +171,7 @@ export default function SettingsPage() {
       const refreshed = auth.currentUser;
       if (refreshed) {
         dispatch(setUser(firebaseUserToAppUser(refreshed)));
-        setUserLocal(firebaseUserToAppUser(refreshed));
+        setEmail(refreshed.email || "");
       }
     }
 
@@ -182,6 +183,7 @@ export default function SettingsPage() {
     fileRef.current?.click();
   }
 
+  // sube foto a storage y actualiza avatar_url en supabase
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f || !user) return;
@@ -220,6 +222,8 @@ export default function SettingsPage() {
 
   async function signOut() {
     await logoutUser();
+    clearProfileIdCache();
+    clearProfilePageCache();
     dispatch(clearUser());
     nav("/login");
   }
@@ -228,6 +232,8 @@ export default function SettingsPage() {
     if (!confirm("This will delete your profile data and sign you out. Continue?")) return;
     const r = await wipeAccountAndSignOut();
     if ("error" in r && r.error) alert(String(r.error.message));
+    clearProfileIdCache();
+    clearProfilePageCache();
     dispatch(clearUser());
     nav("/login");
   }
@@ -243,6 +249,7 @@ export default function SettingsPage() {
   return (
     <div className="settings-page-bg settings-root-text" data-theme="light">
       <input ref={fileRef} type="file" accept="image/*" className="settings-file-input" onChange={onFile} />
+      {/* dialog nativo para agregar alergia nueva */}
       <dialog ref={dlgRef} className="settings-dialog">
         <div className="settings-modal-box">
           <h3 className="settings-modal-title">Add allergy</h3>

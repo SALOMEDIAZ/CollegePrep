@@ -1,124 +1,34 @@
-import { useEffect, useState } from "react";
-import {searchMealsByFirstLetter,searchMealsByName,type MealDbMeal,} from "../services/api";
+// pagina de busqueda de recetas con filtros de categoria y alergias
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  searchMealsByFirstLetter,
+  searchMealsByName,
+  type MealDbMeal,
+} from "../services/api";
 import RecipeCard from "../components/Recipes/RecipeCard";
 import "../styles/recipes.css";
-import {ensureProfileRow,fetchAllergyKeywords,} from "../services/profileService";
-import type { ProfileRow } from "../types/profile";
+import {
+  ensureProfileRow,
+  fetchAllergyKeywords,
+} from "../services/profileService";
 import { getSessionUserId } from "../services/authService";
 import { useAppDispatch, useAppSelector } from "../store/store";
-import {setMeals,setLoading,setError,setForbiddenKeywords,setSearchQuery,setSubmittedQuery,setProfile,} from "../store/slices/recipeSlice";
-
-// Categorías disponibles para filtrar (deben coincidir con strCategory de TheMealDB)
-const CATEGORY_FILTERS = ["Breakfast", "Lunch", "Dinner"] as const;
-type CategoryFilter = (typeof CATEGORY_FILTERS)[number];
-
-// Mapeo de categorías a las que usa TheMealDB
-// "Lunch" y "Dinner" no existen como tal en MealDB, se usan varias categorías equivalentes
-const CATEGORY_MAP: Record<CategoryFilter, string[]> = {
-  Breakfast: ["Breakfast"],
-  Lunch: ["Side", "Starter", "Vegetarian", "Vegan", "Miscellaneous"],
-  Dinner: ["Beef", "Chicken", "Lamb", "Pork", "Seafood", "Pasta", "Goat"],
-};
-
-// normaliza strings para comparar (sin tildes, minúsculas, etc)
-function norm(s: string) {
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[\u2019']/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-// extrae todos los ingredientes de una receta
-function extractMealIngredientNames(meal: MealDbMeal) {
-  const ingredients: string[] = [];
-  for (let i = 1; i <= 20; i++) {
-    const value = String(
-      (meal as unknown as Record<string, unknown>)[`strIngredient${i}`] ?? "",
-    ).trim();
-    if (value) ingredients.push(value);
-  }
-  return ingredients;
-}
-
-// obtiene las restricciones dietéticas del perfil (vegan, gluten free, etc)
-function getDietRestrictions(profile: ProfileRow | null) {
-  if (!profile) return [];
-  const restrictions: string[] = [];
-  if (profile.vegan) restrictions.push("vegan");
-  else if (profile.vegetarian) restrictions.push("vegetarian");
-  if (profile.gluten_free) restrictions.push("gluten_free", "gluten");
-  if (profile.lactose_free) restrictions.push("lactose_free", "lactose");
-  return restrictions;
-}
-
-// si es vegetariano o vegano, obtengo las palabras clave para filtrar
-function getFallbackKeywords(dietRestrictions: string[]) {
-  const isVegetarian =
-    dietRestrictions.includes("vegan") ||
-    dietRestrictions.includes("vegetarian");
-  if (!isVegetarian) return [];
-  const meatKeywords = [
-    "meat",
-    "beef",
-    "pork",
-    "chicken",
-    "turkey",
-    "lamb",
-    "fish",
-    "seafood",
-    "shrimp",
-  ];
-  const veganKeywords = [
-    "egg",
-    "milk",
-    "cheese",
-    "butter",
-    "cream",
-    "yogurt",
-    "honey",
-  ];
-  return dietRestrictions.includes("vegan")
-    ? [...meatKeywords, ...veganKeywords]
-    : meatKeywords;
-}
-
-// chequea si una palabra coincide con alguna palabra clave
-function matchesKeyword(text: string, keywords: string[]) {
-  const normalized = norm(text);
-  if (!normalized) return false;
-  return keywords.some(
-    (kw) => normalized === norm(kw) || normalized.includes(norm(kw)),
-  );
-}
-
-// valida si una receta es permitida según alergias y restricciones
-function isMealAllowed(meal: MealDbMeal, forbiddenKeywords: string[]) {
-  if (!forbiddenKeywords.length) return true;
-
-  const ingredients = extractMealIngredientNames(meal);
-  const title = String(meal.strMeal ?? "");
-  const category = String(meal.strCategory ?? "");
-  const textToCheck = [...ingredients, title, category];
-
-  return !textToCheck.some((text) => matchesKeyword(text, forbiddenKeywords));
-}
-
-// filtra recetas por categoría activa
-function filterByCategory(
-  meals: MealDbMeal[],
-  activeCategory: CategoryFilter | null,
-): MealDbMeal[] {
-  if (!activeCategory) return meals;
-  const allowed = CATEGORY_MAP[activeCategory].map((c) => c.toLowerCase());
-  return meals.filter((m) =>
-    allowed.includes(String(m.strCategory ?? "").toLowerCase()),
-  );
-}
+import {
+  setMeals,
+  setLoading,
+  setError,
+  setForbiddenKeywords,
+  setSearchQuery,
+  setSubmittedQuery,
+  setProfile,
+} from "../store/slices/recipeSlice";
+import { CATEGORY_FILTERS, type CategoryFilter } from "../types/recipes";
+import {
+  filterByCategory,
+  getDietRestrictions,
+  getFallbackKeywords,
+  isMealAllowed,
+} from "../services/recipeService";
 
 // página principal de recetas con búsqueda y filtros
 const RecipesPage = () => {
@@ -130,21 +40,29 @@ const RecipesPage = () => {
   const loading = useAppSelector((state) => state.recipes.loading);
   const error = useAppSelector((state) => state.recipes.error);
   const meals = useAppSelector((state) => state.recipes.meals);
+  const forbiddenKeywords = useAppSelector(
+    (state) => state.recipes.forbiddenKeywords,
+  );
 
   // Estado local para la categoría activa
   const [activeCategory, setActiveCategory] = useState<CategoryFilter | null>(
     null,
   );
+  const [profileReady, setProfileReady] = useState(false);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   const isSearchMode = submittedQuery.trim().length > 0;
 
   // Recetas filtradas por categoría (se aplica sobre las meals del store)
-  const displayedMeals = filterByCategory(meals, activeCategory);
+  const displayedMeals = useMemo(
+    () => filterByCategory(meals, activeCategory),
+    [meals, activeCategory],
+  );
 
   // Toggle de categoría: si ya está activa se desactiva, si no se activa
-  function handleCategoryToggle(category: CategoryFilter) {
+  const handleCategoryToggle = useCallback((category: CategoryFilter) => {
     setActiveCategory((prev) => (prev === category ? null : category));
-  }
+  }, []);
 
   // Un solo efecto: mismo cálculo de keywords que antes + mismo fetch que antes.
   // Evita el segundo disparo cuando forbiddenKeywords llegaba desde Redux (doble recarga).
@@ -157,13 +75,18 @@ const RecipesPage = () => {
         dispatch(setError(null));
 
         const uid = await getSessionUserId();
-        if (!uid || !alive) {
+        if (!alive) return;
+
+        if (!uid) {
+          setHasSession(false);
+          setProfileReady(true);
           dispatch(setProfile(null));
           dispatch(setForbiddenKeywords([]));
           dispatch(setMeals([]));
           return;
         }
 
+        setHasSession(true);
         const { profile: p } = await ensureProfileRow(uid);
         if (!alive) return;
         dispatch(setProfile(p));
@@ -173,9 +96,9 @@ const RecipesPage = () => {
           forbiddenKeywords = [];
           dispatch(setForbiddenKeywords([]));
         } else {
-          const allergies = (
-            Array.isArray(p.allergies) ? p.allergies : []
-          ).map((x) => String(x ?? ""));
+          const allergies = (Array.isArray(p.allergies) ? p.allergies : []).map(
+            (x) => String(x ?? ""),
+          );
           const dietRestrictions = getDietRestrictions(p);
           const allRestrictions = [...allergies, ...dietRestrictions];
 
@@ -183,14 +106,44 @@ const RecipesPage = () => {
             const keywords = await fetchAllergyKeywords(allRestrictions);
             const fallback = getFallbackKeywords(dietRestrictions);
             forbiddenKeywords = [...allRestrictions, ...keywords, ...fallback];
-            if (alive) dispatch(setForbiddenKeywords(forbiddenKeywords));
           } catch {
             forbiddenKeywords = allRestrictions;
-            if (alive) dispatch(setForbiddenKeywords(allRestrictions));
           }
+          if (alive) dispatch(setForbiddenKeywords(forbiddenKeywords));
         }
 
         if (!alive) return;
+        setProfileReady(true);
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : String(e);
+        const msg =
+          raw === "Failed to fetch"
+            ? "Could not reach the profile service. Check your connection and try again."
+            : raw;
+        if (alive) {
+          dispatch(setError(msg));
+          dispatch(setMeals([]));
+        }
+      } finally {
+        if (alive) dispatch(setLoading(false));
+      }
+    };
+
+    run();
+    return () => {
+      alive = false;
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!profileReady || hasSession === false) return;
+
+    let alive = true;
+
+    const run = async () => {
+      try {
+        dispatch(setLoading(true));
+        dispatch(setError(null));
 
         if (isSearchMode) {
           const results = await searchMealsByName(submittedQuery.trim());
@@ -208,7 +161,11 @@ const RecipesPage = () => {
         const alphabet = Array.from("abcdefghijklmnopqrstuvwxyz");
         const usedLetters = new Set<string>();
 
-        for (let attempts = 0; attempts < 6 && mealResults.length < 9; attempts++) {
+        for (
+          let attempts = 0;
+          attempts < 6 && mealResults.length < 9;
+          attempts++
+        ) {
           const availableLetters = alphabet.filter((l) => !usedLetters.has(l));
           if (!availableLetters.length) break;
 
@@ -259,20 +216,34 @@ const RecipesPage = () => {
     return () => {
       alive = false;
     };
-  }, [dispatch, isSearchMode, submittedQuery]);
+  }, [
+    dispatch,
+    forbiddenKeywords,
+    hasSession,
+    isSearchMode,
+    profileReady,
+    submittedQuery,
+  ]);
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    dispatch(setSubmittedQuery(query));
-  }
+  const onSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      dispatch(setSubmittedQuery(query));
+    },
+    [dispatch, query],
+  );
 
   // Mensaje de "sin resultados" considerando el filtro de categoría activo
   const noResults = !loading && !error && displayedMeals.length === 0;
-  const noResultsMessage = activeCategory
-    ? `No ${activeCategory.toLowerCase()} recipes found${isSearchMode ? ` for "${submittedQuery}"` : ""}.`
-    : isSearchMode
-      ? "No results"
-      : "No recipes match your preferences.";
+  const noResultsMessage = useMemo(() => {
+    if (activeCategory) {
+      return `No ${activeCategory.toLowerCase()} recipes found${
+        isSearchMode ? ` for "${submittedQuery}"` : ""
+      }.`;
+    }
+    if (isSearchMode) return "No results";
+    return "No recipes match your preferences.";
+  }, [activeCategory, isSearchMode, submittedQuery]);
 
   return (
     <div className="recipes-page">

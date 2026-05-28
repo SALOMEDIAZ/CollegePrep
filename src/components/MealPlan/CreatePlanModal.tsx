@@ -1,8 +1,10 @@
+// modal para crear plan semanal: presupuesto y que comidas incluir por dia
 import { useMemo, useState } from "react";
 import type { CreatePlanValues, MealType, Weekday } from "../../types/mealPlan";
 
 export type { CreatePlanValues } from "../../types/mealPlan";
 
+// props que recibe desde PlannerPage
 type CreatePlanModalProps = {
   open: boolean;
   title: string;
