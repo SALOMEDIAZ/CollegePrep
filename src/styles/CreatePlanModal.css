@@ -1,0 +1,220 @@
+/* Styles for CreatePlanModal */
+.mp-modalOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2147483647 !important;
+  padding: 20px;
+}
+
+.mp-modal {
+  background: #ffffff;
+  width: min(550px, 96%);
+  max-width: 600px;
+  border-radius: 10px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  padding: 28px;
+  color: #222;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial;
+  position: relative;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.mp-modalClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  transition: color 0.2s ease;
+}
+
+.mp-modalClose:hover {
+  color: #8fbf00;
+}
+
+.mp-modalTitle {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.mp-modalSection {
+  margin-bottom: 18px;
+}
+
+.mp-modalSectionTitle {
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.mp-slider {
+  width: 100%;
+  margin: 8px 0 6px 0;
+  -webkit-appearance: none;
+  height: 10px;
+  background: #444;
+  border-radius: 6px;
+  outline: none;
+}
+.mp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #6aa000;
+  border: 4px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.mp-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #6aa000;
+  border: 4px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.mp-modalValue {
+  text-align: right;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.mp-modalPrefs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+}
+
+.mp-checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.mp-checkboxRow input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #333;
+  border-radius: 4px;
+  display: inline-block;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+.mp-checkboxRow input[type="checkbox"]:focus {
+  outline: 2px solid rgba(143, 191, 0, 0.18);
+}
+.mp-checkboxRow input[type="checkbox"]:checked {
+  background: #8fbf00;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23000000' d='M20.285 6.709a1 1 0 0 0-1.414-1.418l-9.192 9.197-3.475-3.479a1 1 0 0 0-1.414 1.414l4.183 4.187a1 1 0 0 0 1.414 0l10.098-10.901z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.mp-modalHint {
+  margin-top: 8px;
+  color: #666;
+  font-size: 13px;
+  text-align: center;
+  width: 100%;
+}
+
+.mp-dayGrid {
+  display: grid;
+  grid-template-columns: 140px repeat(3, 1fr);
+  gap: 8px 18px;
+  align-items: center;
+  width: 100%;
+}
+.mp-dayGridHead {
+  font-weight: 700;
+  text-align: left;
+  padding: 6px 0;
+}
+.mp-dayRow {
+  display: contents;
+}
+.mp-dayCell {
+  padding: 6px 0;
+}
+.mp-dayLabel {
+  color: #8fbf00;
+  font-weight: 700;
+}
+.mp-dayCheck {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mp-dayCheck input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  background: #333;
+  border-radius: 6px;
+  display: inline-block;
+  position: relative;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.2);
+}
+.mp-dayCheck input[type="checkbox"]:focus {
+  outline: 3px solid rgba(143, 191, 0, 0.18);
+}
+.mp-dayCheck input[type="checkbox"]:checked {
+  background: #8fbf00;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23000000' d='M20.285 6.709a1 1 0 0 0-1.414-1.418l-9.192 9.197-3.475-3.479a1 1 0 0 0-1.414 1.414l4.183 4.187a1 1 0 0 0 1.414 0l10.098-10.901z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.mp-primaryBtn {
+  display: inline-block;
+  margin-top: 8px;
+  background: #8fbf00;
+  color: #fff;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mp-primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Small screens adjustments */
+@media (max-width: 640px) {
+  .mp-dayGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .mp-dayGridHead {
+    text-align: center;
+  }
+}
