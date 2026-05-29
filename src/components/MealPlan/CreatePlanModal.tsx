@@ -1,5 +1,7 @@
 // modal para crear plan semanal: presupuesto y que comidas incluir por dia
 import { useMemo, useState } from "react";
+import ReactDOM from "react-dom";
+import "../../styles/CreatePlanModal.css";
 import type { CreatePlanValues, MealType, Weekday } from "../../types/mealPlan";
 
 export type { CreatePlanValues } from "../../types/mealPlan";
@@ -21,7 +23,9 @@ const MEAL_TYPES: Array<{ key: MealType; label: string }> = [
 ];
 
 function fmtCop(n: number) {
-  return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Math.round(n));
+  return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(
+    Math.round(n),
+  );
 }
 
 function defaultSelections(): CreatePlanValues["selections"] {
@@ -41,22 +45,45 @@ export default function CreatePlanModal(props: CreatePlanModalProps) {
   const [budget, setBudget] = useState(props.initialBudget);
   const [onlySavedRecipes, setOnlySavedRecipes] = useState(false);
   const [onlyNewRecipes, setOnlyNewRecipes] = useState(false);
-  const [selections, setSelections] = useState<CreatePlanValues["selections"]>(() => defaultSelections());
+  const [selections, setSelections] = useState<CreatePlanValues["selections"]>(
+    () => defaultSelections(),
+  );
 
   const selectedCount = useMemo(() => {
     let c = 0;
-    for (const d of WEEKDAYS) for (const m of MEAL_TYPES) if (selections[d][m.key]) c++;
+    for (const d of WEEKDAYS)
+      for (const m of MEAL_TYPES) if (selections[d][m.key]) c++;
     return c;
   }, [selections]);
+
+  const SLIDER_MIN = 50000;
+  const SLIDER_MAX = 500000;
+  const pct = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(((budget - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100),
+    ),
+  );
 
   if (!props.open) return null;
 
   const canCreate = selectedCount > 0 && budget > 0;
 
-  return (
-    <div className="mp-modalOverlay" role="dialog" aria-modal="true" aria-label="Create week plan">
+  const modalContent = (
+    <div
+      className="mp-modalOverlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Create week plan"
+    >
       <div className="mp-modal">
-        <button type="button" className="mp-modalClose" onClick={props.onClose} aria-label="Close">
+        <button
+          type="button"
+          className="mp-modalClose"
+          onClick={props.onClose}
+          aria-label="Close"
+        >
           ×
         </button>
 
@@ -72,6 +99,9 @@ export default function CreatePlanModal(props: CreatePlanModalProps) {
             step={5000}
             value={budget}
             onChange={(e) => setBudget(Number(e.target.value))}
+            style={{
+              background: `linear-gradient(90deg, #8fbf00 ${pct}%, #444 ${pct}%)`,
+            }}
           />
           <div className="mp-modalValue">${fmtCop(budget)}</div>
         </div>
@@ -103,8 +133,10 @@ export default function CreatePlanModal(props: CreatePlanModalProps) {
               />
               <span>Try new recipes</span>
             </label>
+            <div className="mp-modalHint">
+              {!onlySavedRecipes && !onlyNewRecipes ? "Random mix" : null}
+            </div>
           </div>
-          <div className="mp-modalHint">{!onlySavedRecipes && !onlyNewRecipes ? "Random mix" : null}</div>
         </div>
 
         <div className="mp-modalSection">
@@ -120,7 +152,10 @@ export default function CreatePlanModal(props: CreatePlanModalProps) {
               <div key={d} className="mp-dayRow">
                 <div className="mp-dayCell mp-dayLabel">{d}</div>
                 {MEAL_TYPES.map((m) => (
-                  <label key={`${d}-${m.key}`} className="mp-dayCell mp-dayCheck">
+                  <label
+                    key={`${d}-${m.key}`}
+                    className="mp-dayCell mp-dayCheck"
+                  >
                     <input
                       type="checkbox"
                       checked={selections[d][m.key]}
@@ -143,11 +178,20 @@ export default function CreatePlanModal(props: CreatePlanModalProps) {
           type="button"
           className="mp-primaryBtn"
           disabled={!canCreate}
-          onClick={() => props.onCreate({ budget, onlySavedRecipes, onlyNewRecipes, selections })}
+          onClick={() =>
+            props.onCreate({
+              budget,
+              onlySavedRecipes,
+              onlyNewRecipes,
+              selections,
+            })
+          }
         >
           Create week plan
         </button>
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 }
