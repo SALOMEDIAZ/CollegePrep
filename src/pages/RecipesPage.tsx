@@ -1,34 +1,14 @@
 // pagina de busqueda de recetas con filtros de categoria y alergias
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  searchMealsByFirstLetter,
-  searchMealsByName,
-  type MealDbMeal,
-} from "../services/api";
+import {searchMealsByFirstLetter,searchMealsByName,type MealDbMeal,} from "../services/api";
 import RecipeCard from "../components/Recipes/RecipeCard";
 import "../styles/recipes.css";
-import {
-  ensureProfileRow,
-  fetchAllergyKeywords,
-} from "../services/profileService";
+import {ensureProfileRow,fetchAllergyKeywords,} from "../services/profileService";
 import { getSessionUserId } from "../services/authService";
 import { useAppDispatch, useAppSelector } from "../store/store";
-import {
-  setMeals,
-  setLoading,
-  setError,
-  setForbiddenKeywords,
-  setSearchQuery,
-  setSubmittedQuery,
-  setProfile,
-} from "../store/slices/recipeSlice";
+import {setMeals,setLoading,setError,setForbiddenKeywords,setSearchQuery,setSubmittedQuery,setProfile,} from "../store/slices/recipeSlice";
 import { CATEGORY_FILTERS, type CategoryFilter } from "../types/recipes";
-import {
-  filterByCategory,
-  getDietRestrictions,
-  getFallbackKeywords,
-  isMealAllowed,
-} from "../services/recipeService";
+import {filterByCategory,getDietRestrictions,getFallbackKeywords,isMealAllowed,} from "../services/recipeService";
 
 // página principal de recetas con búsqueda y filtros
 const RecipesPage = () => {
@@ -290,11 +270,11 @@ const RecipesPage = () => {
           {loading ? <p className="recipes-status">Loading…</p> : null}
           {error ? <p className="recipes-error">{error}</p> : null}
 
-          {noResults ? (
+          {noResults && !loading ? (
             <p className="recipes-status">{noResultsMessage}</p>
           ) : null}
 
-          {displayedMeals.length ? (
+          {displayedMeals.length && !loading ? (
             <div className="recipes-grid">
               {displayedMeals.map((m) => (
                 <RecipeCard key={m.idMeal} meal={m} />
