@@ -1,70 +1,171 @@
-CollegePrep
-CollegePrep simplifies student life by automating meal planning and budget tracking. Built with React, Redux, and Firebase, it syncs grocery lists and costs in real-time. It is a Pixel Perfect, accessible tool designed to help you eat healthy without overspending time.
+# CollegePrep
 
-This document establishes the technical standards and collaborative workflow for the CollegePrep project. All developers are required to follow these guidelines to ensure Clean Code, Pixel Perfect design, and consistent contributions.
+> Meal planning for students: builds a weekly meal plan based on budget and profile preferences, and lets users explore recipes tailored to restrictions.
 
-1. Technologies and Stack
+---
 
-The project uses the following technologies to meet the performance and scalability requirements:
+## Overview
 
-• Build Tool: Vite
+Brief explanation of:
 
-• Frontend Framework: React
+- What the project does
+- Why it exists
+- How it fits into the ecosystem
 
-• Styling: Tailwind CSS with DaisyUI components
+CollegePrep is a React + Vite web app that helps students plan meals for the week while tracking budget usage. It uses Firebase for authentication and Supabase as the app database (profiles, saved recipes, meal plans, ingredient pricing). Recipe data is pulled from TheMealDB API.
 
-• State Management: Redux (Mandatory for global state synchronization)
+---
 
-• Code Quality: ESLint and Prettier for consistent formatting
+## Current Scope
 
-• Backend/Auth: Firebase (For authentication and real-time updates)
+### Features
 
-• Deployment: Vercel or Netlify (Publicly accessible)
+- Authentication (Firebase): sign up, log in, log out
+- Profile (Supabase): dietary preferences + allergies + avatar
+- Recipes (TheMealDB): search + filter, with profile-based restrictions
+- Meal Planner (Supabase): create weekly plan, persist meals, replace meals within remaining budget
 
-• API: MealDB API
+### Status
 
-2. Setup Instructions
+> The repository is currently focused on establishing the technical foundation and core architecture of the module.
 
-Follow these steps to set up the local development environment:
+---
 
-Clone the repository: git clone [url-del-repo].
+## Architecture
 
-Install dependencies: Run npm install.
+### Responsibilities
 
-Environment Setup: Create a .env file in the root directory and include the necessary Firebase and External API keys.
+- UI rendering and navigation (React Router)
+- Global state synchronization (Redux Toolkit)
+- Data access layer for auth + database + external API (services/)
 
-Run Development Server: Run with npm run dev.
+### Integrations
 
-3. Branching Model
+- Firebase Auth
+- Supabase (database + storage)
+- TheMealDB API
 
-We follow a Feature Branch Workflow to maintain a stable main branch:
+---
 
-• main: Production-ready code only.
+## Tech Stack
 
-• develop: Main integration branch for the team.
+| Category | Technologies               |
+| -------- | -------------------------- |
+| Core     | React, TypeScript, Vite    |
+| UI       | Tailwind CSS, DaisyUI      |
+| State    | Redux Toolkit, React Redux |
+| Testing  | Not configured             |
+| Tooling  | ESLint                     |
 
-• fix/bug-name: Dedicated branches for bug fixes.
+> See `package.json` for exact versions.
 
-4. Commits Convention
+---
 
-All commit messages must be in English and follow the Conventional Commits standard:
+## Getting Started
 
-• feat: A new feature (e.g., feat: integrate spoonacular api).
+### Prerequisites
 
-• fix: A bug fix (e.g., fix: mobile navigation overlap).
+- Node.js 22+
+- npm
 
-• docs: Documentation changes (e.g., docs: update readme).
+### Installation
 
-• style: Formatting, missing semi-colons, or DaisyUI styling tweaks.
+```bash
+npm install
+```
 
-• refactor: Code changes that neither fix a bug or add a feature.
+### Run Locally
 
-5. Development Principles
+```bash
+npm run dev
+```
 
-• English Only: All code, comments, and documentation must be in English.
+---
 
-• Componentization: UI must be broken down into small, reusable components.
+## Environment Variables
 
-• Accessibility: All features must support Keyboard Navigation and Screen Readers.
+Create a `.env.local` file:
 
-• Pixel Perfect: Final implementation must match the High-Fidelity designs provided in D1.
+```env
+# TheMealDB
+VITE_MEALDB_API_KEY=1
+
+# Firebase
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_MEASUREMENT_ID=
+VITE_FIREBASE_PERSISTENCE=session
+
+# Supabase
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+Refer to project documentation for environment-specific values.
+
+---
+
+## Available Scripts
+
+| Command         | Description                      |
+| --------------- | -------------------------------- |
+| npm run dev     | Start development server         |
+| npm run build   | Create production build          |
+| npm run lint    | Run ESLint                       |
+| npm run preview | Preview production build locally |
+
+---
+
+## Development Standards
+
+- ESLint
+- Conventional Commits
+
+Example commit:
+
+```text
+feat: add conversation filters
+```
+
+---
+
+## Project Structure
+
+```text
+src/
+├── components/
+├── pages/
+├── routes/
+├── services/
+├── store/
+├── styles/
+├── types/
+├── App.tsx
+└── main.tsx
+```
+
+---
+
+## Documentation
+
+Additional documentation can be found under:
+
+```text
+docs/
+```
+
+---
+
+## Ownership
+
+**Team:** CollegePrep
+
+**Maintainers:**
+
+- Developer juanjoseholguin
+- Developer SalomeDiaz
+- Developer Codificator Tinoco
